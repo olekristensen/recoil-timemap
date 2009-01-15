@@ -1,6 +1,0 @@
-#include "TextFontHolder.h"
-#include "Particle.h"
-#include "Letter.h"
-#include "Word.h"
-#include "Text.h"
-#include "textObject.h"
