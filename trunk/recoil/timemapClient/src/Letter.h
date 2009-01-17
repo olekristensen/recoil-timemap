@@ -17,7 +17,6 @@ public:
 		setLetter(_letter);		
 		depth = _depth;
 		setPosition(0,0,0);
-	//	cout<<"Pos"<<loc.x<<endl;
 	}
 	void setLetter(string _letter){
 		letter = _letter;
@@ -40,9 +39,7 @@ public:
 		glTranslated(loc.x, loc.y, loc.z);		
 		glMultMatrixd(matrix);		
 		glTranslated(-getWidth()/2.0,-getFont()->getCalculatedHeight()/2.0, 0);
-		//ofEnableAlphaBlending();
-		//	ofDisableAlphaBlending();
-		
+	
 		//** BOUNDING BOX BEGIN
 		ofDisableAlphaBlending();	
 		glPushMatrix();
@@ -104,40 +101,21 @@ public:
 		glPopMatrix();
 		
 		//END BOUNDING BOX **/
-		
-		//	glDisable(GL_DEPTH_TEST);
-		
-		
-		
-		//glEnable(GL_DEPTH_TEST);
-		
-		
-		
+
 		glPopMatrix();
 	}
 	
 	
 	void drawText(){
-		
-
 		glPushMatrix();		
 			glTranslated(loc.x, loc.y, loc.z);		
 			glMultMatrixd(matrix);		
 			glTranslated(-getWidth()/2.0,-getFont()->getCalculatedHeight()/2.0, 0);
-		//ofEnableAlphaBlending();
-		//	ofDisableAlphaBlending();
-
 		ofSetColor(255,255,255, 255);
 		glPushMatrix();
 		glTranslated(3, (font->getCalculatedHeight())/2.0+6 ,  -depth/2.0);
-		//glTranslated(0, font->getStringBoundingBox(getLetter(), 0, 0).height/2.0, 0);
 		glNormal3d(0.0,0.0,1.0);
-		//ofDisableAlphaBlending();
-		//ofEnableAlphaBlending();	
 		font->renderString((string)letter);
-		//ofEnableAlphaBlending();		
-		//glDisable(GL_DEPTH_TEST);
-		//glEnable(GL_DEPTH_TEST);		
 		glPopMatrix();
 	}
 	
@@ -155,7 +133,6 @@ public:
 					c+= font->getCharSetWidth("p");
 				}
 			}*/
-
 			return font->getWidth(letter+"p");
 		}
 	}
@@ -175,14 +152,10 @@ public:
 	}
 	
 	void translate(float x, float y, float z){
-
 		loc.x += x;
 		loc.y += y;
 		loc.z += z;
-//		cout<<y<<endl;		
-
 	}
-
 	
 	ofPoint getLoc(){
 		return loc;

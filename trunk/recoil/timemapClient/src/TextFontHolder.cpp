@@ -34,9 +34,6 @@ TextFontHolder::TextFontHolder(){
 TextFontHolder::TextFontHolder(string file, int _fontSize = 20){
 	bLoadedOk = false;
 	loadFont(file, _fontSize, true, true);
-	//shader.loadShader("Invert");
-//	shader.printActiveUniforms();
-//	shader.printActiveAttributes();
 }
 
 //------------------------------------------------------------------
@@ -47,12 +44,11 @@ TextFontHolder::~TextFontHolder(){
 
 //------------------------------------------------------------------
 void TextFontHolder::loadFont(string filename, int fontsize){
-	// load anti-aliased, non-full character set:
 	loadFont(filename, fontsize, true, true);
 }
 //------------------------------------------------------------------
 void TextFontHolder::loadFont(string filename, int fontsize, bool _bAntiAliased, bool _bFullCharacterSet){
-	font = new FTGLPolygonFont("/Volumes/Recoil/Development/libs/00573-Xcode-Fat-YCAM-WithGui/apps/recoil/timemapClientPreSvn/data/ArnoPro-Display.otf");	
+	font = new FTGLPolygonFont(ofToDataPath(filename).c_str());	
   	bLoadedOk = true;	
 	font->FaceSize(fontsize);
 }
@@ -85,7 +81,6 @@ void TextFontHolder::drawChar(int c, float x, float y) {
 //-----------------------------------------------------------
 float TextFontHolder::stringWidth(string c) {
     ofRectangle rect = getStringBoundingBox(c, 0,0);
-//	cout<<rect.width<<endl;
     return rect.width;
 }
 
@@ -93,7 +88,6 @@ float TextFontHolder::stringWidth(string c) {
 ofRectangle TextFontHolder::getStringBoundingBox(string c, float x, float y){
 	float llx, lly, llz, urx, ury, urz;
 	font->BBox(c.c_str(), llx, lly, llz, urx, ury, urz);
-//	cout<<llx<<" "<<lly<<" "<<urx-llx<<" "<<ury-lly<<endl;
 	return ofRectangle(llx, lly,  urx-llx, ury-lly);
 }
 
