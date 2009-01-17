@@ -88,39 +88,43 @@ void testApp::bulletSetup(){
 	int maxProxies = 1024;
 //	btAxisSweep3* broadphase = new btAxisSweep3(worldAabbMin,worldAabbMax,maxProxies);
 	btDbvtBroadphase* broadphase = new btDbvtBroadphase();
-
 	btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
 	btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
-
 	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
-
 	dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,broadphase,solver,collisionConfiguration);
-
 	dynamicsWorld->setGravity(btVector3(0,1000,0));
-
-	
+//Ground 	
 	btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0,-1,0),1);
 	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(ofGetWidth()/2.0,ofGetHeight(),0)));
 	btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
 	groundRigidBody = new btRigidBody(groundRigidBodyCI);
 	dynamicsWorld->addRigidBody(groundRigidBody);
-		
+
+//Collider
+	btCollisionShape* fallShape = new btBoxShape(btVector3(60,60,6000));
+	btVector3 pos = btVector3(0,0,0);
+	btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
+	btScalar mass = 10;
+	btVector3 fallInertia(0,0,0);
+	fallShape->calculateLocalInertia(mass,fallInertia);
+	btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass,fallMotionState,fallShape,fallInertia);
+	collider = new btRigidBody(fallRigidBodyCI);
+	collider->setCollisionFlags( collider->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
+	collider->setActivationState(DISABLE_DEACTIVATION);
+	dynamicsWorld->addRigidBody(collider);
+	
+//Letters
 	int numLetters = text->getNumberLetters();
 	bodies = new btRigidBody*[numLetters];
 	for(int i=0; i<numLetters; i++){
 		Letter * l = text->getLetter(i);
-//		btCollisionShape* fallShape = new btBoxShape(btVector3((text->getLetter(i)->getWidth()-2)/2.0,(l->getFont()->getHeight(l->getLetter())/2.0),(20)/4.0));
 		btCollisionShape* fallShape = new btBoxShape(btVector3((text->getLetter(i)->getWidth()-1)/2.0,(l->getFont()->getCalculatedHeight()/2.0),text->getLetter(i)->getDepth()/2.0));
 		btVector3 pos = btVector3(l->getLoc().x, l->getLoc().y, l->getLoc().z);
-		
 		btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
 		btScalar mass = 10;
 		btVector3 fallInertia(0,0,0);
 		fallShape->calculateLocalInertia(mass,fallInertia);
 		btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass,fallMotionState,fallShape,fallInertia);
-	//	fallRigidBodyCI.m_friction = 100.0;
-		
-
 		bodies[i] = new btRigidBody(fallRigidBodyCI);
 		bodies[i]->setDamping(0.9,0.9);
 //		dynamicsWorld->addRigidBody(bodies[i]);
@@ -130,10 +134,8 @@ void testApp::bulletSetup(){
 	bodies2 = new btRigidBody*[numLetters];
 	for(int i=0; i<numLetters; i++){
 		Letter * l = text2->getLetter(i);
-		//		btCollisionShape* fallShape = new btBoxShape(btVector3((text->getLetter(i)->getWidth()-2)/2.0,(l->getFont()->getHeight(l->getLetter())/2.0),(20)/4.0));
 		btCollisionShape* fallShape = new btBoxShape(btVector3((text2->getLetter(i)->getWidth()-1)/2.0,(l->getFont()->getCalculatedHeight()/2.0),text2->getLetter(i)->getDepth()/2.0));
 		btVector3 pos = btVector3(l->getLoc().x, l->getLoc().y, l->getLoc().z);
-		
 		btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
 		btScalar mass = 100;
 		btVector3 fallInertia(0,0,0);
@@ -141,7 +143,6 @@ void testApp::bulletSetup(){
 		btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass,fallMotionState,fallShape,fallInertia);
 		bodies2[i] = new btRigidBody(fallRigidBodyCI);
 		bodies[i]->setDamping(0.9,0.9);
-
 		//		dynamicsWorld->addRigidBody(bodies[i]);
 	}
 	
@@ -149,36 +150,25 @@ void testApp::bulletSetup(){
 	bodies3 = new btRigidBody*[numLetters];
 	for(int i=0; i<numLetters; i++){
 		Letter * l = text3->getLetter(i);
-		//		btCollisionShape* fallShape = new btBoxShape(btVector3((text->getLetter(i)->getWidth()-2)/2.0,(l->getFont()->getHeight(l->getLetter())/2.0),(20)/4.0));
 		btCollisionShape* fallShape = new btBoxShape(btVector3((text3->getLetter(i)->getWidth()-1)/2.0,(l->getFont()->getCalculatedHeight()/2.0),text3->getLetter(i)->getDepth()/2.0));
 		btVector3 pos = btVector3(l->getLoc().x, l->getLoc().y, l->getLoc().z);
-		
 		btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
 		btScalar mass = 10;
 		btVector3 fallInertia(0,0,0);
 		fallShape->calculateLocalInertia(mass,fallInertia);
 		btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass,fallMotionState,fallShape,fallInertia);
 		bodies3[i] = new btRigidBody(fallRigidBodyCI);
-		bodies[i]->setDamping(0.9,0.9);
-
-			
-		//		dynamicsWorld->addRigidBody(bodies[i]);
+		bodies[i]->setDamping(0.9,0.9);			
+		//dynamicsWorld->addRigidBody(bodies[i]);
 	}
 }
 
 //--------------------------------------------------------------
 void testApp::update(){
-	cout<<ofGetFrameRate()<<endl;
-	
-	
-	
-	//cout<<" --- "<<endl;
 	int numLetters = text->getNumberLetters();
 	int t = ofGetElapsedTimeMillis();
 //	dynamicsWorld->stepSimulation(1.0/60.0,100);
-
 	dynamicsWorld->stepSimulation((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0f, 20, btScalar(1.)/btScalar(150.));
-	//cout<<ofGetElapsedTimeMillis()-t<<endl;
 //	cout << ((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0) << " < " << 20 * (1.0/50.0) << endl;
 	millisForUpdate = ofGetElapsedTimeMillis();
 	btTransform trans[numLetters];
@@ -218,7 +208,6 @@ void testApp::update(){
 	
 	numLetters = text2->getNumberLetters();
 	dynamicsWorld->stepSimulation((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0f, 20, btScalar(1.)/btScalar(150.));
-	//	cout << ((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0) << " < " << 20 * (1.0/150.0) << endl;
 	millisForUpdate = ofGetElapsedTimeMillis();
 	
 	for(int i=0; i<numLetters; i++){
@@ -254,7 +243,7 @@ void testApp::update(){
 		l->matrix[15] = 1;
 	}
 	
-	 numLetters = text3->getNumberLetters();
+	numLetters = text3->getNumberLetters();
 	dynamicsWorld->stepSimulation((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0f, 20, btScalar(1.)/btScalar(150.));
 	//	cout << ((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0) << " < " << 20 * (1.0/150.0) << endl;
 	millisForUpdate = ofGetElapsedTimeMillis();
@@ -292,6 +281,13 @@ void testApp::update(){
 	}
 
 
+//Collider
+//	collider->translate(btVector3(100,100,0));
+
+	btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),btVector3(mouseX,mouseY,0)));
+	collider->setMotionState(fallMotionState);
+
+	//collider->setPo
 	
 	
 	//Camerastuff
@@ -334,30 +330,24 @@ void testApp::update(){
 }
 
 void testApp::draw(){
+	//OpenGL stuff
+	glEnable(GL_DEPTH_TEST);
+	glOrtho(-1.0, 1.0, -1.0, 1.0, 50, 100);
+	//ofBackground(255, 255, 255);	
 	
-	//light1
+//Lights
 	float L1DirectionX = 0.4;
-
 	float L1DirectionY = -0.4;
 	float L1DirectionZ = -1.0;
 	
 	//light1.directionalLight(10, 10, 10, L1DirectionX, L1DirectionY, L1DirectionZ);
 	light1.pointLight(15, 15, 15, 1000, ofGetHeight(), -100);
-	//ofSetColor(255, 0, 0);
-	//ofCircle(ofGetHeight()-100, 200, 20);
-	
-	//glClearDepth(1);
-
-	glEnable(GL_DEPTH_TEST);
-//	glEnable(GL_ALPHA_TEST);   // enable alpha testing 
-//glAlphaFunc(GL_GREATER, 0.5);
-	glOrtho(-1.0, 1.0, -1.0, 1.0, 50, 100);
 
 	ofxLightsOn(); //turn lights on
 
-//	ofBackground(255, 255, 255);
+#ifdef USE_TRIPLEHEAD
+//The screens
 	glPushMatrix();
-
 	GLfloat myMatrix[16];
 	for(int i = 0; i < 16; i++){
 		if(i % 5 != 0) myMatrix[i] = 0.0;
@@ -381,8 +371,7 @@ void testApp::draw(){
 	cvsrc[3].x = ofGetWidth();
 	cvsrc[3].y = ofGetHeight();
 	cvsrc[0].x = 0;
-	cvsrc[0].y = ofGetHeight();	
-	
+	cvsrc[0].y = ofGetHeight();		
 
 	CvMat * translate = cvCreateMat(3,3,CV_32FC1);
 	CvMat* src_mat = cvCreateMat( 4, 2, CV_32FC1 );
@@ -403,27 +392,10 @@ void testApp::draw(){
 	glMultMatrixf(myMatrix);
 	glScaled(4.0, 1.0, 1.0); 
 	drawViewport();
-	glPopMatrix();
-	
-//	ofSetupScreen();
-	
-	for(int i = 0; i < 16; i++){
-		if(i % 5 != 0) myMatrix[i] = 0.0;
-		else myMatrix[i] = 1.0;
-	}
-	
+	glPopMatrix();	
+//Screen 2
 	glPushMatrix();
-
 	glTranslatef( ofGetWidth()/3.0, 0, 0);
-	cvdst[0].x = 0;
-	cvdst[0].y = 0;
-	cvdst[1].x = ofGetWidth()/3.0;
-	cvdst[1].y = 0;
-	cvdst[2].x = ofGetWidth()/3.0;
-	cvdst[2].y = ofGetHeight();
-	cvdst[3].x = 0;
-	cvdst[3].y = ofGetHeight();
-
 	cvsrc[1].x = 0;
 	cvsrc[1].y = 0;
 	cvsrc[2].x = ofGetWidth();
@@ -431,14 +403,8 @@ void testApp::draw(){
 	cvsrc[3].x = ofGetWidth();
 	cvsrc[3].y = ofGetHeight();
 	cvsrc[0].x = 0;
-	cvsrc[0].y = ofGetHeight();	
-	
-	
-	translate = cvCreateMat(3,3,CV_32FC1);
-	src_mat = cvCreateMat( 4, 2, CV_32FC1 );
-	dst_mat = cvCreateMat( 4, 2, CV_32FC1 );
+	cvsrc[0].y = ofGetHeight();			
 	cvSetData( src_mat, cvsrc, sizeof(CvPoint2D32f));
-	cvSetData( dst_mat, cvdst, sizeof(CvPoint2D32f));
 	cvFindHomography(src_mat, dst_mat, translate);
 	matrix = translate->data.fl;
 	myMatrix[0]		= matrix[0];
@@ -449,32 +415,15 @@ void testApp::draw(){
 	myMatrix[13]	= matrix[5];		
 	myMatrix[3]		= matrix[6];
 	myMatrix[7]		= matrix[7];
-	myMatrix[15]	= matrix[8];			
-
+	myMatrix[15]	= matrix[8];		
 	glMultMatrixf(myMatrix);
 	glScaled(4.0, 1.0, 1.0); 
 	glTranslatef(-ofGetHeight(), 0, 0);
 	drawViewport();
-	glPopMatrix();
-	
-	//ofSetupScreen();
-	glPushMatrix();
-
-	for(int i = 0; i < 16; i++){
-		if(i % 5 != 0) myMatrix[i] = 0.0;
-		else myMatrix[i] = 1.0;
-	}
-	
-	glTranslatef( 2*ofGetWidth()/3.0, 0, 0);
-	cvdst[0].x = 0;
-	cvdst[0].y = 0;
-	cvdst[1].x = ofGetWidth()/3.0;
-	cvdst[1].y = 0;
-	cvdst[2].x = ofGetWidth()/3.0;
-	cvdst[2].y = ofGetHeight();
-	cvdst[3].x = 0;
-	cvdst[3].y = ofGetHeight();
-	
+	glPopMatrix();	
+//Screen 3	
+	glPushMatrix();	
+	glTranslatef( 2*ofGetWidth()/3.0, 0, 0);	
 	cvsrc[1].x = 0;
 	cvsrc[1].y = 0;
 	cvsrc[2].x = ofGetWidth();
@@ -482,14 +431,8 @@ void testApp::draw(){
 	cvsrc[3].x = ofGetWidth();
 	cvsrc[3].y = ofGetHeight();
 	cvsrc[0].x = 0;
-	cvsrc[0].y = ofGetHeight();	
-	
-	
-	translate = cvCreateMat(3,3,CV_32FC1);
-	src_mat = cvCreateMat( 4, 2, CV_32FC1 );
-	dst_mat = cvCreateMat( 4, 2, CV_32FC1 );
+	cvsrc[0].y = ofGetHeight();		
 	cvSetData( src_mat, cvsrc, sizeof(CvPoint2D32f));
-	cvSetData( dst_mat, cvdst, sizeof(CvPoint2D32f));
 	cvFindHomography(src_mat, dst_mat, translate);
 	matrix = translate->data.fl;
 	myMatrix[0]		= matrix[0];
@@ -506,6 +449,11 @@ void testApp::draw(){
 	glTranslatef(-ofGetHeight()*2, 0, 0);
 	drawViewport();
 	glPopMatrix();
+#else
+	
+	drawViewport();
+	
+#endif
 	
 }
 
@@ -531,16 +479,26 @@ void testApp::drawViewport(){
 	
 	
 	
-//glDisable(GL_ALPHA_TEST);
+	//glDisable(GL_ALPHA_TEST);
 	text->drawBricks();
 	text2->drawBricks();
 	text3->drawBricks();
 	//glEnable(GL_ALPHA_TEST);
-	
+
+	btTransform trans;
+	btVector3 pos;
+	btMatrix3x3 basis;		
+	collider->getMotionState()->getWorldTransform(trans);
+	pos = trans.getOrigin();
+	//basis[i] = trans[i].getBasis();
+	glPushMatrix();
+	glTranslatef((float)pos.getX(),pos.getY(), 300);
+	ofSetColor(255, 0, 0);
+	ofCircle(0,0,30);
 		
+	glPopMatrix();
 	//videoTexture.draw(0,0);	
 	
-
 	// Draw Frame
 	if(makeSnaps){
 	// grab a rectangle at 200,200, width and height of 300,180
