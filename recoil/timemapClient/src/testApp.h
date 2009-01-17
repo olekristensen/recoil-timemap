@@ -15,7 +15,7 @@
 #include "sharedVariable.h"
 #include "texts.h"
 
-
+#define USE_TRIPLEHEAD 
 
 class testApp : public ofSimpleApp{
 	
@@ -50,27 +50,23 @@ class testApp : public ofSimpleApp{
 		TextFontHolder * font1;
 		Text* text, *text2, *text3;
 	
-	
 		btDiscreteDynamicsWorld * dynamicsWorld;	
 		
 		btRigidBody * groundRigidBody;	
 		btRigidBody **bodies, **bodies2, **bodies3;
-		float *sphereRadiuses;
+	
+		btRigidBody *collider;
+
 
 		int millisForUpdate;
-	
 	
 		int					snapCounter;
 		char 				snapString[255];
 		ofImage 			img;
 		bool				makeSnaps;
 	
-	
-		ofxLight light1; //this will be a directional light
-	bool bSmoothLight;
-
-	
-
+		ofxLight light1; 
+		bool bSmoothLight;
 };
 
 #endif
