@@ -35,7 +35,7 @@ void testApp::setup(){
 	text->setText("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
 	text->setFont(font1);
 	text->setWordBlocks(true);
-	text->setDepth(40);
+	text->setDepth(20);
 	text->setWidth(600);
 	text->setLineHeight(30*1.0);
 	text->constructText();
@@ -47,9 +47,9 @@ void testApp::setup(){
 	text2->setText("Autem molestie cu ius, ad vel dicit numquam philosophia, ius labores ponderum sadipscing an.  ");
 	text2->setWordBlocks(true);
 	text2->setFont(font1);
-	text2->setDepth(40);
+	text2->setDepth(20);
 	text2->setWidth(600);
-	text2->setLineHeight(30*1.2);
+	text2->setLineHeight(30*1.0);
 	text2->constructText();
 	text2->translate(-20+ofGetHeight(),ofGetHeight()-text2->getHeight(),10);
 	
@@ -57,7 +57,7 @@ void testApp::setup(){
 	text3->setText("Has cu etiam legere iuvaret, pri malorum fuisset tibique ea. Has ipsum dolor ut, has aeque numquam inciderint eu. Sit facilisi mnesarchum vituperata no.  consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Audire dolorem interesset sit ad, eos ullum nostrud epicuri ea, vel eripuit facilisi menandri ut.");
 	text3->setWordBlocks(true);
 	text3->setFont(font1);
-	text3->setDepth(40);
+	text3->setDepth(20);
 	text3->setWidth(600);
 	text3->setLineHeight(30*1.0);
 	text3->constructText();
@@ -72,12 +72,18 @@ void testApp::setup(){
 	//Light
 	bSmoothLight = true;
 	//reflexions!!
-	ofxMaterialSpecular(25, 25, 25); //how much specular light will be reflect by the surface
-	ofxMaterialShininess(100); //how concentrated the reflexion will be (between 0 and 128
+	ofxMaterialSpecular(50, 50, 50); //how much specular light will be reflect by the surface
+	ofxMaterialShininess(25); //how concentrated the reflexion will be (between 0 and 128
 	light1.specular(0, 0, 0);
 	light1.diffuse(255,255,255);
 	light1.ambient(0,0,0); //this basically tints everything with its color, by default is 0,0,0.
-
+	//light2.specular(0, 0, 0);
+	//light2.diffuse(255,255,255);
+	//light2.ambient(0,0,0); //this basically tints everything with its color, by default is 0,0,0.
+	//light3.specular(0, 0, 0);
+	//light3.diffuse(255,255,255);
+	//light3.ambient(0,0,0); //this basically tints everything with its color, by default is 0,0,0.
+	
 	ofxSetSmoothLight(true);
 
 }
@@ -338,10 +344,10 @@ void testApp::draw(){
 //Lights
 	float L1DirectionX = 0.4;
 	float L1DirectionY = -0.4;
-	float L1DirectionZ = -1.0;
+	float L1DirectionZ = 1.0;
 	
-	//light1.directionalLight(10, 10, 10, L1DirectionX, L1DirectionY, L1DirectionZ);
-	light1.pointLight(15, 15, 15, 1000, ofGetHeight(), -100);
+	light1.directionalLight(50, 50, 50, L1DirectionX, L1DirectionY, L1DirectionZ);
+	//light1.pointLight(250, 250, 250, ((768*3)/6*1), 1024/2, -200.0);
 
 	ofxLightsOn(); //turn lights on
 
