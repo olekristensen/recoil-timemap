@@ -43,7 +43,7 @@ public:
 		//** BOUNDING BOX BEGIN
 		ofDisableAlphaBlending();	
 		glPushMatrix();
-		ofSetColor(33, 33, 33);
+		ofSetColor(05, 05, 05);
 		//ofSetColor(0, 0, 255);
 		glNormal3d(0.0,0.0,-1.0);
 		

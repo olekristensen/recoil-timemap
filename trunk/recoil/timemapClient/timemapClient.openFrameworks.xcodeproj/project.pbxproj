@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		08435ED90F24C50A006CCCDF /* camera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 08435ED80F24C50A006CCCDF /* camera.cpp */; };
+		0843605F0F24EEA0006CCCDF /* coordWarp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0843605E0F24EEA0006CCCDF /* coordWarp.cpp */; };
 		088086D40F1D0BDA00692531 /* btAxisSweep3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0880854B0F1D0BDA00692531 /* btAxisSweep3.cpp */; };
 		088086D50F1D0BDA00692531 /* btBroadphaseProxy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0880854E0F1D0BDA00692531 /* btBroadphaseProxy.cpp */; };
 		088086D60F1D0BDA00692531 /* btCollisionAlgorithm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 088085500F1D0BDA00692531 /* btCollisionAlgorithm.cpp */; };
@@ -237,6 +239,10 @@
 		081425950F1CDABF009CF522 /* textObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = textObject.h; sourceTree = "<group>"; };
 		081425980F1CDB58009CF522 /* texts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = texts.h; sourceTree = "<group>"; };
 		081425B80F1CDCC6009CF522 /* TextFontHolder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TextFontHolder.h; sourceTree = "<group>"; };
+		08435ED70F24C50A006CCCDF /* camera.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = camera.h; sourceTree = "<group>"; };
+		08435ED80F24C50A006CCCDF /* camera.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = camera.cpp; sourceTree = "<group>"; };
+		0843605D0F24EEA0006CCCDF /* coordWarp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = coordWarp.h; sourceTree = "<group>"; };
+		0843605E0F24EEA0006CCCDF /* coordWarp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = coordWarp.cpp; sourceTree = "<group>"; };
 		088085460F1D0BDA00692531 /* btBulletCollisionCommon.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = btBulletCollisionCommon.h; sourceTree = "<group>"; };
 		088085470F1D0BDA00692531 /* btBulletDynamicsCommon.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = btBulletDynamicsCommon.h; sourceTree = "<group>"; };
 		088085480F1D0BDA00692531 /* Bullet-C-Api.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "Bullet-C-Api.h"; sourceTree = "<group>"; };
@@ -2270,6 +2276,10 @@
 				E4B69E1E0A3A1BDC003C02F2 /* testApp.cpp */,
 				E4B69E1F0A3A1BDC003C02F2 /* testApp.h */,
 				7FA4448E0F1B6FF800FD7B05 /* sharedVariable.h */,
+				08435ED70F24C50A006CCCDF /* camera.h */,
+				08435ED80F24C50A006CCCDF /* camera.cpp */,
+				0843605D0F24EEA0006CCCDF /* coordWarp.h */,
+				0843605E0F24EEA0006CCCDF /* coordWarp.cpp */,
 			);
 			path = src;
 			sourceTree = SOURCE_ROOT;
@@ -2545,6 +2555,8 @@
 				08A1AE7F0F20B5E00093CD8E /* ofxCamera.cpp in Sources */,
 				08A1AE800F20B5E00093CD8E /* ofxLight.cpp in Sources */,
 				08A1AE810F20B5E00093CD8E /* ofxShapes.cpp in Sources */,
+				08435ED90F24C50A006CCCDF /* camera.cpp in Sources */,
+				0843605F0F24EEA0006CCCDF /* coordWarp.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

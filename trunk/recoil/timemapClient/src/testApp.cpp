@@ -22,10 +22,14 @@ void testApp::setup(){
 	//sharedVariables.push_back(SharedVariable(&showIndex, "time"));
 
 	//Camreasetup
-	/*vidGrabber.initGrabber(768,576);
+/*	vidGrabber.initGrabber(768,576);
 	videoTexture.allocate(768,576, GL_RGB);
 	historyIndex = 0;
 	showIndex = 0;*/
+	
+//Tracker camera 
+
+	// videoTexture.allocate(768,576, GL_RGB);
 	
 	
 	//---Texts---
@@ -85,7 +89,20 @@ void testApp::setup(){
 	//light3.ambient(0,0,0); //this basically tints everything with its color, by default is 0,0,0.
 	
 	ofxSetSmoothLight(true);
-
+	
+	vidTracker.setVerbose(true);
+	vidTracker.initGrabber(320,240);
+	
+	colorImg.allocate(320,240);
+	grayImage.allocate(320,240);
+	grayBg.allocate(320,240);
+	grayDiff.allocate(320,240);
+	
+	bLearnBakground = true;
+	threshold = 50;
+	camera1.setup(&vidTracker, &trackerTexture, &colorImg,  0,0,vidTracker.width/2.0, vidTracker.height/2.0);
+	cornerWarperIndex = -1;
+	
 }
 
 void testApp::bulletSetup(){
@@ -133,7 +150,7 @@ void testApp::bulletSetup(){
 		btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass,fallMotionState,fallShape,fallInertia);
 		bodies[i] = new btRigidBody(fallRigidBodyCI);
 		bodies[i]->setDamping(0.9,0.9);
-//		dynamicsWorld->addRigidBody(bodies[i]);
+		//		dynamicsWorld->addRigidBody(bodies[i]);
 	}
 	
 	numLetters = text2->getNumberLetters();
@@ -286,14 +303,6 @@ void testApp::update(){
 		l->matrix[15] = 1;
 	}
 
-
-//Collider
-//	collider->translate(btVector3(100,100,0));
-
-	btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),btVector3(mouseX,mouseY,0)));
-	collider->setMotionState(fallMotionState);
-
-	//collider->setPo
 	
 	
 	//Camerastuff
@@ -333,13 +342,74 @@ void testApp::update(){
 			sharedVariables[i].handleOsc(&m);
 		}
 	}*/
+	
+	vidTracker.grabFrame();
+	ofPoint leftPoint = ofPoint(vidTracker.width,0);
+	ofPoint rightPoint = ofPoint(0,0);
+	
+	if (vidTracker.isFrameNew()){
+		
+		colorImg.setFromPixels(vidTracker.getPixels(), 320,240);
+
+			
+		for (int i = 0; i < camera1.contourFinder.nBlobs; i++){
+			//(contourFinder.blobs[i].draw(320,240);
+			for(int u=camera1.contourFinder.blobs[i].pts.size()-1; u>= 0; u--){
+				if(camera1.contourFinder.blobs[i].pts[u].x < leftPoint.x){
+					leftPoint = camera1.contourFinder.blobs[i].pts[u];
+				}
+				if(camera1.contourFinder.blobs[i].pts[u].x > rightPoint.x){
+					rightPoint = camera1.contourFinder.blobs[i].pts[u];
+				}
+			}			
+		}
+		
+		/*leftPoint.x /= (float)camera1.size.x;
+		leftPoint.x *= ofGetHeight();
+		leftPoint.y /= (float)camera1.size.y;
+		leftPoint.y *= ofGetWidth()/3.0;*/
+		rightPoint.x /= (float)camera1.size.x;
+		rightPoint.y /= (float)camera1.size.y;
+		ofxPoint2f p = camera1.coordwarp.transform(rightPoint.x, rightPoint.y);
+		rightPoint.x = p.x;
+		rightPoint.y = p.y;
+		rightPoint.x *= ofGetHeight();
+		rightPoint.y *= ofGetWidth()/3.0;
+		//		cout<<leftPoint.x<<endl;
+		//cout<<rightPoint.x<<" "<<rightPoint.y<<endl;
+		
+		camera1.update();			
+	}
+	
+	
+	//Collider
+	point.x += (rightPoint.x-point.x)*0.1;
+	point.y += (rightPoint.y-point.y )*0.1;
+
+	btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),btVector3(point.x,point.y,0)));
+	collider->setMotionState(fallMotionState);	
+	
+	if(cornerWarperIndex != -1){
+		//cout<<"Update corner "<<cornerWarperIndex<<endl;
+
+		ofxPoint2f d[4];
+		d[0] = camera1.getDst(0);
+		d[1] = camera1.getDst(1);
+		d[2] = camera1.getDst(2);
+		d[3] = camera1.getDst(3);
+		d[cornerWarperIndex].x = mouseX/(float)ofGetWidth();
+		d[cornerWarperIndex].y = mouseY/(float)ofGetHeight();
+		
+		//cout<<camera1.dst[cornerWarperIndex].x<< " - "<<camera1.dst[cornerWarperIndex].y<<endl;
+		camera1.updateWarp(d);
+	}
 }
 
 void testApp::draw(){
 	//OpenGL stuff
 	glEnable(GL_DEPTH_TEST);
 	glOrtho(-1.0, 1.0, -1.0, 1.0, 50, 100);
-	//ofBackground(255, 255, 255);	
+	ofBackground(0,0,0);	
 	
 //Lights
 	float L1DirectionX = 0.4;
@@ -458,39 +528,29 @@ void testApp::draw(){
 #else
 	
 	drawViewport();
+//	glDisable(GL_DEPTH_TEST);
+	
 	
 #endif
-	
+
 }
 
 //--------------------------------------------------------------
 void testApp::drawViewport(){
-	ofBackground(0, 0, 0);
 	ofSetColor(255, 255, 255);
-	//ofRect(0,0,ofGetWidth(), ofGetHeight());
-	ofEnableAlphaBlending();
-	glAlphaFunc(GL_GREATER, 0.99);
-	glEnable(GL_ALPHA_TEST);
+
 	glEnable(GL_DEPTH_TEST);
-	ofDisableAlphaBlending();
 	
 	//Draw Letters	
-	ofSetColor(255, 255, 255);
-	
-	//glDisable(GL_DEPTH_TEST);
 	text->drawText();
 	text2->drawText();
-	text3->drawText();
-	//glEnable(GL_DEPTH_TEST);
+	text3->drawText();	
 	
-	
-	
-	//glDisable(GL_ALPHA_TEST);
 	text->drawBricks();
 	text2->drawBricks();
 	text3->drawBricks();
-	//glEnable(GL_ALPHA_TEST);
 
+//Collider
 	btTransform trans;
 	btVector3 pos;
 	btMatrix3x3 basis;		
@@ -498,12 +558,16 @@ void testApp::drawViewport(){
 	pos = trans.getOrigin();
 	//basis[i] = trans[i].getBasis();
 	glPushMatrix();
-	glTranslatef((float)pos.getX(),pos.getY(), 300);
-	ofSetColor(255, 0, 0);
-	ofCircle(0,0,30);
-		
+		glTranslatef((float)pos.getX(),pos.getY(), 300);
+		ofFill();
+		ofSetColor(255, 0, 0);
+		ofCircle(0,0,30);
 	glPopMatrix();
+
+	
 	//videoTexture.draw(0,0);	
+	camera1.draw(ofGetHeight(), ofGetWidth()/3.0);
+
 	
 	// Draw Frame
 	if(makeSnaps){
@@ -519,18 +583,53 @@ void testApp::drawViewport(){
 
 //--------------------------------------------------------------
 void testApp::keyPressed  (int key){ 
-	int numLetters = text->getNumberLetters();
-	for(int i=0; i<numLetters; i++){
-		dynamicsWorld->addRigidBody(bodies[i]);
+	
+	switch (key){
+		case '1':
+			cornerWarperIndex = 0;
+			break;
+		case '2':
+			cornerWarperIndex = 1;
+			break;
+		case '3':
+			cornerWarperIndex = 2;
+			break;
+		case '4':
+			cornerWarperIndex = 3;
+			break;
+		case 'b':
+			camera1.bLearnBakground = true;
+			break;
+		case '+':
+			camera1.threshold ++;
+			if (camera1.threshold > 255) camera1.threshold = 255;
+			break;
+		case '-':
+			camera1.threshold --;
+			if (camera1.threshold < 0) camera1.threshold = 0;
+			break;
+		case 'v':
+			vidTracker.videoSettings();
+			break;
+		case ' ':
+			int numLetters = text->getNumberLetters();
+			for(int i=0; i<numLetters; i++){
+				dynamicsWorld->addRigidBody(bodies[i]);
+			}
+			numLetters = text2->getNumberLetters();
+			for(int i=0; i<numLetters; i++){
+				dynamicsWorld->addRigidBody(bodies2[i]);
+			}
+			numLetters = text3->getNumberLetters();
+			for(int i=0; i<numLetters; i++){
+				dynamicsWorld->addRigidBody(bodies3[i]);
+			}
+			break;
+
 	}
-	numLetters = text2->getNumberLetters();
-	for(int i=0; i<numLetters; i++){
-		dynamicsWorld->addRigidBody(bodies2[i]);
-	}
-	numLetters = text3->getNumberLetters();
-	for(int i=0; i<numLetters; i++){
-		dynamicsWorld->addRigidBody(bodies3[i]);
-	}
+	
+	
+	
 	//makeSnaps = true;
 }
 
@@ -550,7 +649,8 @@ void testApp::mouseDragged(int x, int y, int button){
 //--------------------------------------------------------------
 void testApp::mousePressed(int x, int y, int button){
 	ofxSetSmoothLight(false);
-
+	if(cornerWarperIndex != -1)
+		cornerWarperIndex = -1;
 }
 
 //--------------------------------------------------------------

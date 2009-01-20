@@ -14,6 +14,7 @@
 #include "ofAddons.h"
 #include "sharedVariable.h"
 #include "texts.h"
+#include "camera.h"
 
 #define USE_TRIPLEHEAD 
 
@@ -41,11 +42,27 @@ class testApp : public ofSimpleApp{
 
 		float fade;
 		
-		/*ofVideoGrabber vidGrabber;
+/*		ofVideoGrabber vidGrabber;
 		unsigned char videoHistory[HISTORYSIZE][PICTURESIZE];
 		int historyIndex;		
 		ofTexture videoTexture;
 		int showIndex;*/
+	
+	//Video tracker
+		ofVideoGrabber vidTracker;
+		ofTexture trackerTexture;
+		
+		ofxCvColorImage		colorImg;
+	
+		ofxCvGrayscaleImage 	grayImage;
+		ofxCvGrayscaleImage 	grayBg;
+		ofxCvGrayscaleImage 	grayDiff;
+	
+		ofxCvContourFinder 	contourFinder;
+	
+		int 				threshold;
+		bool				bLearnBakground;
+	
 	
 		TextFontHolder * font1;
 		Text* text, *text2, *text3;
@@ -67,6 +84,10 @@ class testApp : public ofSimpleApp{
 	
 		ofxLight light1; 
 		bool bSmoothLight;
+	
+		Camera camera1;
+		ofPoint point;
+		int cornerWarperIndex;
 };
 
 #endif
