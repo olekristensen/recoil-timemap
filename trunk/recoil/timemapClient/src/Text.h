@@ -1,5 +1,6 @@
 #ifndef RECOIL_TEXT
 #define RECOIL_TEXT
+#define OF_ADDON_USING_OFXBULLET
 
 #include "ofMain.h"
 #include "ofAddons.h"
@@ -32,10 +33,7 @@ public:
 		positionText();
 		createSpacers();
 	}
-	
-	void clear(){
-		words.clear();
-	}
+
 
 	//----
 	//Creates the word objects (and letter objects)
@@ -215,6 +213,35 @@ public:
 		return c;
 	}
 	
+	
+	void setupBullet(btDiscreteDynamicsWorld * dynamicsWorld, vector<btRigidBody*>* bodies){
+		int numLetters = getNumberLetters();
+		//bodies = new btRigidBody*[numLetters];
+		for(int i=0; i<numLetters; i++){
+			Letter * l = getLetter(i);
+			btCollisionShape* fallShape = new btBoxShape(btVector3((getLetter(i)->getWidth()-1)/200.0,(l->getFont()->getCalculatedHeight()/200.0),getLetter(i)->getDepth()/200.0));
+			btVector3 pos = btVector3(l->getLoc().x/100.0, l->getLoc().y/100.0, l->getLoc().z/100.0);
+			btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
+			btScalar mass = 1.0;
+			btVector3 fallInertia(0,0,0);
+			fallShape->calculateLocalInertia(mass,fallInertia);
+			btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass,fallMotionState,fallShape,fallInertia);
+			l->bulletBodie = new btRigidBody(fallRigidBodyCI);
+			l->bulletBodie->setDamping(0,0);
+			l->bulletBodie->setFriction(.6);
+			l->bulletBodie->setDamping(0.99,0.99);
+
+			bodies->push_back(l->bulletBodie);
+			//		bodies[i]->setRestitution(.5);
+			dynamicsWorld->addRigidBody(l->bulletBodie);
+		}	
+	}
+	void clear(){
+		words.clear();
+		spacers.clear();
+		lines.clear();
+		numberLines = 0;
+	}
 private:
 	int numberLines;
 	string text;

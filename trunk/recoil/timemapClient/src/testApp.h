@@ -15,6 +15,8 @@
 #include "sharedVariable.h"
 #include "texts.h"
 #include "camera.h"
+#include "ofxBlobSimplify.h"
+#include "of1394VideoGrabber.h"
 
 #define USE_TRIPLEHEAD 
 
@@ -50,19 +52,11 @@ class testApp : public ofSimpleApp{
 	
 	//Video tracker
 		ofVideoGrabber vidTracker;
+	//of1394VideoGrabber 	vidGrabber;
+
 		ofTexture trackerTexture;
 		
 		ofxCvColorImage		colorImg;
-	
-		ofxCvGrayscaleImage 	grayImage;
-		ofxCvGrayscaleImage 	grayBg;
-		ofxCvGrayscaleImage 	grayDiff;
-	
-		ofxCvContourFinder 	contourFinder;
-	
-		int 				threshold;
-		bool				bLearnBakground;
-	
 	
 		TextFontHolder * font1;
 		Text* text, *text2, *text3;
@@ -70,9 +64,13 @@ class testApp : public ofSimpleApp{
 		btDiscreteDynamicsWorld * dynamicsWorld;	
 		
 		btRigidBody * groundRigidBody;	
-		btRigidBody **bodies, **bodies2, **bodies3;
+		//btRigidBody **bodies, **bodies2, **bodies3;
+		vector<btRigidBody*> bodies;
 	
 		btRigidBody *collider;
+	
+	btSoftBodyWorldInfo	m_softBodyWorldInfo;
+
 
 
 		int millisForUpdate;
@@ -85,9 +83,14 @@ class testApp : public ofSimpleApp{
 		ofxLight light1; 
 		bool bSmoothLight;
 	
+		ofPoint cameraCorners[3][4];
+		ofPoint projectorCorners[3][4];
+
 		Camera camera1;
 		ofPoint point;
 		int cornerWarperIndex;
+	
+		bool debug;
 };
 
 #endif

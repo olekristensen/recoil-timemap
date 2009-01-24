@@ -5,18 +5,44 @@
 //--------------------------------------------------------------
 void testApp::setup(){	 
 	//General setup
-	
-	ofBackground(255, 255, 255);
-	ofSetFrameRate(100);
+	//ofHideCursor();
+	ofBackground(0, 0, 0);
+	ofSetFrameRate(60);
 	makeSnaps = false;
 	memset(snapString, 0, 255);		// clear the string by setting all chars to 0
 	snapCounter = 0;
 	
 	//OSC Setup
-//	receiver.setup(8001);
-//	sender.setup("192.168.1.3", 8000);
+	receiver.setup(8001);
+	sender.setup("localhost", 8000);
+	
+	ofxOscMessage m;
+	m.setAddress( ("/sendVariables/please"));
+	m.addIntArg(1);
+	sender.sendMessage( m );
 
 	//Add sharedvariables
+
+	for(int i=0;i<3;i++){
+		cameraCorners[i][0] = ofPoint(0.0,0.0);
+		cameraCorners[i][1] = ofPoint(1.0, 0.0);
+		cameraCorners[i][2] = ofPoint(1.0, 1.0);
+		cameraCorners[i][3] = ofPoint(0.0, 1.0);
+		for(int u=0;u<4;u++){
+			sharedVariables.push_back(SharedVariable(&cameraCorners[i][u].x, "cameraCornerx"+ofToString(i, 0)+ofToString(u, 0)));
+			sharedVariables.push_back(SharedVariable(&cameraCorners[i][u].y, "cameraCornery"+ofToString(i, 0)+ofToString(u, 0)));
+		}
+	}	
+	for(int i=0;i<3;i++){
+		projectorCorners[i][0] = ofPoint(0.0,0.0);
+		projectorCorners[i][1] = ofPoint(1.0, 0.0);
+		projectorCorners[i][2] = ofPoint(1.0, 1.0);
+		projectorCorners[i][3] = ofPoint(0.0, 1.0);
+		for(int u=0;u<4;u++){
+			sharedVariables.push_back(SharedVariable(&projectorCorners[i][u].x, "projectorCornerx"+ofToString(i, 0)+ofToString(u, 0)));
+			sharedVariables.push_back(SharedVariable(&projectorCorners[i][u].y, "projectorCornery"+ofToString(i, 0)+ofToString(u, 0)));
+		}
+	}
 	fade = 1.0;
 	sharedVariables.push_back(SharedVariable(&fade, "fade"));	
 	//sharedVariables.push_back(SharedVariable(&showIndex, "time"));
@@ -30,44 +56,47 @@ void testApp::setup(){
 //Tracker camera 
 
 	// videoTexture.allocate(768,576, GL_RGB);
+
 	
+	bulletSetup();
 	
 	//---Texts---
 	//font
- 	font1 = new TextFontHolder("ArnoPro-Display.otf", 30);
+ 	font1 = new TextFontHolder("ArnoPro-Display.otf", 50);
 	text = new Text();
-	text->setText("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
+	text->setText("Når andre kan læse ens tanker, hvordan undgår man så at vise sine tanker - man kan ikke helt lade være at tænke - men man kan tænke på noget andet, dække sine egne tanker gennem bevidst og konsekvent at referere andres mulige tanker? Eller? Hvordan forløber et forhør under de omstændigheder? Intet behøver at blive sagt.");
 	text->setFont(font1);
 	text->setWordBlocks(true);
-	text->setDepth(20);
+	text->setDepth(60);
 	text->setWidth(600);
-	text->setLineHeight(30*1.0);
+	text->setLineHeight(50*1.0);
 	text->constructText();
+	text->translate(100,ofGetWidth()/3.0-text->getHeight()-100,0);
+	text->setupBullet(dynamicsWorld, &bodies);
 
-	text->translate(100,ofGetHeight()-text->getHeight(),0);
-	
 	
 	text2 = new Text();
-	text2->setText("Autem molestie cu ius, ad vel dicit numquam philosophia, ius labores ponderum sadipscing an.  ");
+	text2->setText("  ");
 	text2->setWordBlocks(true);
 	text2->setFont(font1);
 	text2->setDepth(20);
 	text2->setWidth(600);
 	text2->setLineHeight(30*1.0);
 	text2->constructText();
-	text2->translate(-20+ofGetHeight(),ofGetHeight()-text2->getHeight(),10);
-	
+	text2->translate(100+ofGetHeight(),ofGetWidth()/3.0-text2->getHeight()-100,10);
+	text2->setupBullet(dynamicsWorld, &bodies);
+
 	text3 = new Text();
-	text3->setText("Has cu etiam legere iuvaret, pri malorum fuisset tibique ea. Has ipsum dolor ut, has aeque numquam inciderint eu. Sit facilisi mnesarchum vituperata no.  consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Audire dolorem interesset sit ad, eos ullum nostrud epicuri ea, vel eripuit facilisi menandri ut.");
+	text3->setText("Has cu etiam legere iuvaret, pri malorum fuisset tibiqu");
 	text3->setWordBlocks(true);
 	text3->setFont(font1);
 	text3->setDepth(20);
 	text3->setWidth(600);
 	text3->setLineHeight(30*1.0);
 	text3->constructText();
-	text3->translate(100+ofGetHeight()*2,ofGetHeight()-text3->getHeight(),0);
+	text3->translate(100+ofGetHeight()*2,ofGetWidth()/3.0-text3->getHeight()-100,0);
+	text3->setupBullet(dynamicsWorld, &bodies);
 
-	bulletSetup();
 	
 	millisForUpdate = ofGetElapsedTimeMillis();
 	
@@ -80,233 +109,174 @@ void testApp::setup(){
 	ofxMaterialShininess(25); //how concentrated the reflexion will be (between 0 and 128
 	light1.specular(0, 0, 0);
 	light1.diffuse(255,255,255);
-	light1.ambient(0,0,0); //this basically tints everything with its color, by default is 0,0,0.
+	light1.ambient(255,255,255); //this basically tints everything with its color, by default is 0,0,0.
 	//light2.specular(0, 0, 0);
 	//light2.diffuse(255,255,255);
 	//light2.ambient(0,0,0); //this basically tints everything with its color, by default is 0,0,0.
 	//light3.specular(0, 0, 0);
 	//light3.diffuse(255,255,255);
 	//light3.ambient(0,0,0); //this basically tints everything with its color, by default is 0,0,0.
-	
 	ofxSetSmoothLight(true);
 	
 	vidTracker.setVerbose(true);
-	vidTracker.initGrabber(320,240);
+	vidTracker.initGrabber(720,576);
 	
-	colorImg.allocate(320,240);
-	grayImage.allocate(320,240);
-	grayBg.allocate(320,240);
-	grayDiff.allocate(320,240);
-	
-	bLearnBakground = true;
-	threshold = 50;
-	camera1.setup(&vidTracker, &trackerTexture, &colorImg,  0,0,vidTracker.width/2.0, vidTracker.height/2.0);
+	colorImg.allocate(720,576);
+	camera1.setup(&vidTracker, &trackerTexture, &colorImg,  0,0,vidTracker.width/2, vidTracker.height/2);
 	cornerWarperIndex = -1;
 	
+	debug = false;
 }
 
+static inline btScalar	UnitRand()
+{
+	return(rand()/(btScalar)RAND_MAX);
+}
+static inline btScalar	SignedUnitRand()
+{
+	return(UnitRand()*2-1);
+}
+static inline btVector3	Vector3Rand()
+{
+	const btVector3	p=btVector3(SignedUnitRand(),SignedUnitRand(),SignedUnitRand());
+	return(p.normalized());
+}
+
+
+//--------------------------------------------------------------
 void testApp::bulletSetup(){
 	btVector3 worldAabbMin(0,0,0);
 	btVector3 worldAabbMax(ofGetWidth(), ofGetHeight(), 1000);
-	int maxProxies = 1024;
+	int maxProxies = 2048;
 //	btAxisSweep3* broadphase = new btAxisSweep3(worldAabbMin,worldAabbMax,maxProxies);
 	btDbvtBroadphase* broadphase = new btDbvtBroadphase();
 	btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
 	btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
 	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 	dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,broadphase,solver,collisionConfiguration);
-	dynamicsWorld->setGravity(btVector3(0,1000,0));
+	dynamicsWorld->setGravity(btVector3(0,10,0));
+
 //Ground 	
 	btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0,-1,0),1);
-	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(ofGetWidth()/2.0,ofGetHeight(),0)));
+	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3((ofGetHeight()/2.0)/100.0,(ofGetWidth()/3.0)/100.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
 	groundRigidBody = new btRigidBody(groundRigidBodyCI);
 	dynamicsWorld->addRigidBody(groundRigidBody);
 
 //Collider
-	btCollisionShape* fallShape = new btBoxShape(btVector3(60,60,6000));
-	btVector3 pos = btVector3(0,0,0);
+	btCollisionShape* fallShape = new btBoxShape(btVector3(0.1,0.1,6000));
+	btVector3 pos = btVector3(1,1,0);
 	btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
-	btScalar mass = 10;
+	btScalar mass = 20.;
 	btVector3 fallInertia(0,0,0);
 	fallShape->calculateLocalInertia(mass,fallInertia);
 	btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass,fallMotionState,fallShape,fallInertia);
 	collider = new btRigidBody(fallRigidBodyCI);
+	collider->setGravity(btVector3(0.,0.,0.));
+	collider->setDamping(0.99,0.9);
 	collider->setCollisionFlags( collider->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	collider->setActivationState(DISABLE_DEACTIVATION);
 	dynamicsWorld->addRigidBody(collider);
 	
-//Letters
-	int numLetters = text->getNumberLetters();
-	bodies = new btRigidBody*[numLetters];
-	for(int i=0; i<numLetters; i++){
-		Letter * l = text->getLetter(i);
-		btCollisionShape* fallShape = new btBoxShape(btVector3((text->getLetter(i)->getWidth()-1)/2.0,(l->getFont()->getCalculatedHeight()/2.0),text->getLetter(i)->getDepth()/2.0));
-		btVector3 pos = btVector3(l->getLoc().x, l->getLoc().y, l->getLoc().z);
-		btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
-		btScalar mass = 10;
-		btVector3 fallInertia(0,0,0);
-		fallShape->calculateLocalInertia(mass,fallInertia);
-		btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass,fallMotionState,fallShape,fallInertia);
-		bodies[i] = new btRigidBody(fallRigidBodyCI);
-		bodies[i]->setDamping(0.9,0.9);
-		//		dynamicsWorld->addRigidBody(bodies[i]);
+/*	//TRACEDEMO
+	const btScalar	s=2;
+	const btScalar	h=10;
+	const int		segments=6;
+	const int		count=50;
+	for(int i=0;i<count;++i)
+	{
+		btSoftBody*		psb=btSoftBodyHelpers::CreatePatch(m_softBodyWorldInfo,btVector3(-s,h,-s),
+														   btVector3(+s,h,-s),
+														   btVector3(-s,h,+s),
+														   btVector3(+s,h,+s),
+														   segments,segments,
+														   0,true);
+		btSoftBody::Material*	pm=psb->appendMaterial();
+		pm->m_flags				-=	btSoftBody::fMaterial::DebugDraw;
+		psb->generateBendingConstraints(2,pm);
+		psb->m_cfg.kLF			=	0.004;
+		psb->m_cfg.kDG			=	0.0003;
+		psb->m_cfg.aeromodel	=	btSoftBody::eAeroModel::V_TwoSided;
+		btTransform		trs;
+		btQuaternion	rot;
+		btVector3		ra=Vector3Rand()*0.1;
+		btVector3		rp=Vector3Rand()*15+btVector3(0,20,80);
+		rot.setEuler(SIMD_PI/8+ra.x(),-SIMD_PI/7+ra.y(),ra.z());
+		trs.setIdentity();
+		trs.setOrigin(rp);
+		trs.setRotation(rot);
+		psb->transform(trs);
+		psb->setTotalMass(0.1);
+		psb->addForce(btVector3(0,2,0),0);
+		((btSoftRigidDynamicsWorld*) dynamicsWorld)->addSoftBody(psb);
+		
 	}
-	
-	numLetters = text2->getNumberLetters();
-	bodies2 = new btRigidBody*[numLetters];
-	for(int i=0; i<numLetters; i++){
-		Letter * l = text2->getLetter(i);
-		btCollisionShape* fallShape = new btBoxShape(btVector3((text2->getLetter(i)->getWidth()-1)/2.0,(l->getFont()->getCalculatedHeight()/2.0),text2->getLetter(i)->getDepth()/2.0));
-		btVector3 pos = btVector3(l->getLoc().x, l->getLoc().y, l->getLoc().z);
-		btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
-		btScalar mass = 100;
-		btVector3 fallInertia(0,0,0);
-		fallShape->calculateLocalInertia(mass,fallInertia);
-		btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass,fallMotionState,fallShape,fallInertia);
-		bodies2[i] = new btRigidBody(fallRigidBodyCI);
-		bodies[i]->setDamping(0.9,0.9);
-		//		dynamicsWorld->addRigidBody(bodies[i]);
-	}
-	
-	numLetters = text3->getNumberLetters();
-	bodies3 = new btRigidBody*[numLetters];
-	for(int i=0; i<numLetters; i++){
-		Letter * l = text3->getLetter(i);
-		btCollisionShape* fallShape = new btBoxShape(btVector3((text3->getLetter(i)->getWidth()-1)/2.0,(l->getFont()->getCalculatedHeight()/2.0),text3->getLetter(i)->getDepth()/2.0));
-		btVector3 pos = btVector3(l->getLoc().x, l->getLoc().y, l->getLoc().z);
-		btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
-		btScalar mass = 10;
-		btVector3 fallInertia(0,0,0);
-		fallShape->calculateLocalInertia(mass,fallInertia);
-		btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass,fallMotionState,fallShape,fallInertia);
-		bodies3[i] = new btRigidBody(fallRigidBodyCI);
-		bodies[i]->setDamping(0.9,0.9);			
-		//dynamicsWorld->addRigidBody(bodies[i]);
-	}
+	//*/
 }
+
 
 //--------------------------------------------------------------
 void testApp::update(){
-	int numLetters = text->getNumberLetters();
-	int t = ofGetElapsedTimeMillis();
+	float dt = ((ofGetElapsedTimeMillis()-millisForUpdate))* 0.000001f;
+//	dt = 0.003407;
+	//int t = ofGetElapsedTimeMillis();1
+	int maxSimSubSteps = 1;
+	int numSimSteps = 0;
+	numSimSteps = dynamicsWorld->stepSimulation(dt,maxSimSubSteps);
+//	cout<<dt<<endl;
+	//dynamicsWorld->stepSimulation(1.0f/60.f,0);
+
+	//cout<<(ofGetElapsedTimeMillis()-millisForUpdate)/2.0<<endl;
 //	dynamicsWorld->stepSimulation(1.0/60.0,100);
-	dynamicsWorld->stepSimulation((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0f, 20, btScalar(1.)/btScalar(150.));
-//	cout << ((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0) << " < " << 20 * (1.0/50.0) << endl;
+	dynamicsWorld->stepSimulation((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0f, 20, btScalar(1.)/btScalar(100.));
+//	cout << ((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0) << " < " << 20 * (1.0/150.0) << endl;
 	millisForUpdate = ofGetElapsedTimeMillis();
+
+	int numLetters = text->getNumberLetters()+text2->getNumberLetters()+text3->getNumberLetters();
 	btTransform trans[numLetters];
 	btVector3 pos[numLetters];
-	btMatrix3x3 basis[numLetters];	
-
+	btMatrix3x3 basis[numLetters];
+	vector<Letter*> l;
+	
 	for(int i=0; i<numLetters; i++){
-			bodies[i]->getMotionState()->getWorldTransform(trans[i]);
-			pos[i] = trans[i].getOrigin();
-			basis[i] = trans[i].getBasis();
+		bodies[i]->getMotionState()->getWorldTransform(trans[i]);
+		if(i<text->getNumberLetters()){
+			l.push_back(text->getLetter(i));
+		}
+		else if(i<text->getNumberLetters()+text2->getNumberLetters()){
+			l.push_back(text2->getLetter(i-text->getNumberLetters()));
+		}
+		else {
+			l.push_back(text3->getLetter(i-text->getNumberLetters()-text2->getNumberLetters()));
+		}
+		
+		pos[i] = trans[i].getOrigin();
+		basis[i] = trans[i].getBasis();		
 	}
 	
 	#pragma omp parallel for 
 	for(int i=0; i<numLetters; i++){
-		Letter * l = text->getLetter(i);
-		l->setPosition(pos[i].getX(), pos[i].getY(), pos[i].getZ());
-		if(i == 0) {
-			//cout << l->getLetter() << " " << pos[i].getX() << ", " << pos[i].getY() << ", " << pos[i].getZ() << endl;
-		}
-		l->matrix[	0] = basis[i].getRow(0)[0];
-		l->matrix[4] = basis[i].getRow(0)[1];
-		l->matrix[8] = basis[i].getRow(0)[2];
-		l->matrix[12] = 0;
-		l->matrix[1] = basis[i].getRow(1)[0];
-		l->matrix[5] = basis[i].getRow(1)[1];
-		l->matrix[9] = basis[i].getRow(1)[2];
-		l->matrix[13] = 0;
-		l->matrix[2] = basis[i].getRow(2)[0];
-		l->matrix[6] = basis[i].getRow(2)[1];
-		l->matrix[10] = basis[i].getRow(2)[2];
-		l->matrix[14] = 0;
-		l->matrix[3] = 0;
-		l->matrix[7] = 0;
-		l->matrix[11] = 0;
-		l->matrix[15] = 1;
+		l[i]->setPosition(pos[i].getX()*100, pos[i].getY()*100, pos[i].getZ()*100);
+		l[i]->matrix[0] = basis[i].getRow(0)[0];
+		l[i]->matrix[4] = basis[i].getRow(0)[1];
+		l[i]->matrix[8] = basis[i].getRow(0)[2];
+		l[i]->matrix[12] = 0;
+		l[i]->matrix[1] = basis[i].getRow(1)[0];
+		l[i]->matrix[5] = basis[i].getRow(1)[1];
+		l[i]->matrix[9] = basis[i].getRow(1)[2];
+		l[i]->matrix[13] = 0;
+		l[i]->matrix[2] = basis[i].getRow(2)[0];
+		l[i]->matrix[6] = basis[i].getRow(2)[1];
+		l[i]->matrix[10] = basis[i].getRow(2)[2];
+		l[i]->matrix[14] = 0;
+		l[i]->matrix[3] = 0;
+		l[i]->matrix[7] = 0;
+		l[i]->matrix[11] = 0;
+		l[i]->matrix[15] = 1;
 	}
-	
-	numLetters = text2->getNumberLetters();
-	dynamicsWorld->stepSimulation((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0f, 20, btScalar(1.)/btScalar(150.));
-	millisForUpdate = ofGetElapsedTimeMillis();
-	
-	for(int i=0; i<numLetters; i++){
-	bodies2[i]->applyCentralForce(btVector3(-100000,0,0));
-
-		bodies2[i]->getMotionState()->getWorldTransform(trans[i]);
-		pos[i] = trans[i].getOrigin();
-		basis[i] = trans[i].getBasis();
-	}
-	
-#pragma omp parallel for 
-	for(int i=0; i<numLetters; i++){
-		Letter * l = text2->getLetter(i);
-		l->setPosition(pos[i].getX(), pos[i].getY(), pos[i].getZ());
-		if(i == 0) {
-			//cout << l->getLetter() << " " << pos[i].getX() << ", " << pos[i].getY() << ", " << pos[i].getZ() << endl;
-		}
-		l->matrix[	0] = basis[i].getRow(0)[0];
-		l->matrix[4] = basis[i].getRow(0)[1];
-		l->matrix[8] = basis[i].getRow(0)[2];
-		l->matrix[12] = 0;
-		l->matrix[1] = basis[i].getRow(1)[0];
-		l->matrix[5] = basis[i].getRow(1)[1];
-		l->matrix[9] = basis[i].getRow(1)[2];
-		l->matrix[13] = 0;
-		l->matrix[2] = basis[i].getRow(2)[0];
-		l->matrix[6] = basis[i].getRow(2)[1];
-		l->matrix[10] = basis[i].getRow(2)[2];
-		l->matrix[14] = 0;
-		l->matrix[3] = 0;
-		l->matrix[7] = 0;
-		l->matrix[11] = 0;
-		l->matrix[15] = 1;
-	}
-	
-	numLetters = text3->getNumberLetters();
-	dynamicsWorld->stepSimulation((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0f, 20, btScalar(1.)/btScalar(150.));
-	//	cout << ((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0) << " < " << 20 * (1.0/150.0) << endl;
-	millisForUpdate = ofGetElapsedTimeMillis();
-
-	
-	for(int i=0; i<numLetters; i++){
-		bodies3[i]->getMotionState()->getWorldTransform(trans[i]);
-		pos[i] = trans[i].getOrigin();
-		basis[i] = trans[i].getBasis();
-	}
-	
-#pragma omp parallel for 
-	for(int i=0; i<numLetters; i++){
-		Letter * l = text3->getLetter(i);
-		l->setPosition(pos[i].getX(), pos[i].getY(), pos[i].getZ());
-		if(i == 0) {
-			//cout << l->getLetter() << " " << pos[i].getX() << ", " << pos[i].getY() << ", " << pos[i].getZ() << endl;
-		}
-		l->matrix[	0] = basis[i].getRow(0)[0];
-		l->matrix[4] = basis[i].getRow(0)[1];
-		l->matrix[8] = basis[i].getRow(0)[2];
-		l->matrix[12] = 0;
-		l->matrix[1] = basis[i].getRow(1)[0];
-		l->matrix[5] = basis[i].getRow(1)[1];
-		l->matrix[9] = basis[i].getRow(1)[2];
-		l->matrix[13] = 0;
-		l->matrix[2] = basis[i].getRow(2)[0];
-		l->matrix[6] = basis[i].getRow(2)[1];
-		l->matrix[10] = basis[i].getRow(2)[2];
-		l->matrix[14] = 0;
-		l->matrix[3] = 0;
-		l->matrix[7] = 0;
-		l->matrix[11] = 0;
-		l->matrix[15] = 1;
-	}
-
-	
 	
 	//Camerastuff
-	/*vidGrabber.grabFrame();
+/*	vidGrabber.grabFrame();
 	if (vidGrabber.isFrameNew()){
 		int totalPixels = 768*576*3;
 		unsigned char * pixels = vidGrabber.getPixels();
@@ -325,73 +295,89 @@ void testApp::update(){
 	}
 	videoTexture.loadData(videoHistory[index], 768,576, GL_RGB);
 //	}
-	*/
+	//*/
 	
 	
 	//Update shared variables
-	/*for(int i=0;i<sharedVariables.size();i++){
+	for(int i=0;i<sharedVariables.size();i++){
 		sharedVariables[i].update(&sender);
-	}*/
+	}
 	
 	//recieve osc messages
-/*	while( receiver.hasWaitingMessages() )
-	{
+	while( receiver.hasWaitingMessages() )
+	{	
+
 		ofxOscMessage m;
+		
 		receiver.getNextMessage( &m );		
+	//	cout<<m.getAddress()<<endl;
 		for(int i=0;i<sharedVariables.size();i++){
+			
 			sharedVariables[i].handleOsc(&m);
 		}
-	}*/
+	}
 	
 	vidTracker.grabFrame();
-	ofPoint leftPoint = ofPoint(vidTracker.width,0);
-	ofPoint rightPoint = ofPoint(0,0);
-	
-	if (vidTracker.isFrameNew()){
-		
-		colorImg.setFromPixels(vidTracker.getPixels(), 320,240);
-
-			
+	ofPoint leftPoint = ofPoint(-1,-1);
+	ofPoint rightPoint = ofPoint(-1,-1);
+	ofxPoint2f p;
+	if (vidTracker.isFrameNew()){		
+		colorImg.setFromPixels(vidTracker.getPixels(), 720,576
+		);			
 		for (int i = 0; i < camera1.contourFinder.nBlobs; i++){
-			//(contourFinder.blobs[i].draw(320,240);
 			for(int u=camera1.contourFinder.blobs[i].pts.size()-1; u>= 0; u--){
-				if(camera1.contourFinder.blobs[i].pts[u].x < leftPoint.x){
+				if(camera1.contourFinder.blobs[i].pts[u].x < leftPoint.x || leftPoint.x == -1){
 					leftPoint = camera1.contourFinder.blobs[i].pts[u];
 				}
-				if(camera1.contourFinder.blobs[i].pts[u].x > rightPoint.x){
+				if(camera1.contourFinder.blobs[i].pts[u].x > rightPoint.x || rightPoint.x == -1){
 					rightPoint = camera1.contourFinder.blobs[i].pts[u];
 				}
 			}			
 		}
 		
-		/*leftPoint.x /= (float)camera1.size.x;
-		leftPoint.x *= ofGetHeight();
+		leftPoint.x /= (float)camera1.size.x;
 		leftPoint.y /= (float)camera1.size.y;
-		leftPoint.y *= ofGetWidth()/3.0;*/
+		 p = camera1.coordwarp.transform(leftPoint.x, leftPoint.y);
+		p.x *= ofGetHeight();
+		p.y *= ofGetWidth()/3.0;
+//**
 		rightPoint.x /= (float)camera1.size.x;
 		rightPoint.y /= (float)camera1.size.y;
-		ofxPoint2f p = camera1.coordwarp.transform(rightPoint.x, rightPoint.y);
+		p = camera1.coordwarp.transform(rightPoint.x, rightPoint.y);
 		rightPoint.x = p.x;
 		rightPoint.y = p.y;
 		rightPoint.x *= ofGetHeight();
 		rightPoint.y *= ofGetWidth()/3.0;
-		//		cout<<leftPoint.x<<endl;
-		//cout<<rightPoint.x<<" "<<rightPoint.y<<endl;
-		
+//*/
 		camera1.update();			
 	}
 	
 	
 	//Collider
-	point.x += (rightPoint.x-point.x)*0.1;
-	point.y += (rightPoint.y-point.y )*0.1;
 
-	btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),btVector3(point.x,point.y,0)));
+	if(mouseX > 0 && mouseX < ofGetWidth()){
+		point.x += (mouseX*3.0/4.0-point.x);
+		point.y += (mouseY*4.0/3.0-point.y );
+	} else {//if(rightPoint.x != 0 && rightPoint.y != 0){
+		point.x += (p.x-point.x)*0.2;
+		point.y += (p.y-point.y )*0.2;
+//		cout<<"asd"<<point.x<<endl;
+	}
+
+	btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),btVector3(point.x/100.0,point.y/100.0,0)));
 	collider->setMotionState(fallMotionState);	
-	
-	if(cornerWarperIndex != -1){
-		//cout<<"Update corner "<<cornerWarperIndex<<endl;
-
+	btTransform col_trans;
+	btVector3 col_pos;
+	collider->getMotionState()->getWorldTransform(col_trans);
+	col_pos = col_trans.getOrigin();
+//	btVector3 f = btVector3(point.x/100.0-col_pos.getX(),point.y/100.0-col_pos.getY(),0)*10.;
+//	cout<<"Force: "<<f[0]<<" . "<<f[1]<<endl;
+//	if((f[0] > 0.1 || f[0] < -0.1) && (f[1] > 0.1 || f[1] < -0.1) ){
+//	collider->clearForces();
+	//collider->setGravity(btVector3(0.0,0.0,0.0));
+//	collider->applyCentralImpulse(f);
+//	}
+/*	if(cornerWarperIndex != -1){
 		ofxPoint2f d[4];
 		d[0] = camera1.getDst(0);
 		d[1] = camera1.getDst(1);
@@ -399,24 +385,31 @@ void testApp::update(){
 		d[3] = camera1.getDst(3);
 		d[cornerWarperIndex].x = mouseX/(float)ofGetWidth();
 		d[cornerWarperIndex].y = mouseY/(float)ofGetHeight();
-		
-		//cout<<camera1.dst[cornerWarperIndex].x<< " - "<<camera1.dst[cornerWarperIndex].y<<endl;
 		camera1.updateWarp(d);
+	}*/
+	ofxPoint2f d[4];
+	for(int i=0;i<4;i++){
+		d[i].x = (float)cameraCorners[0][i].x;// mouseX/(float)ofGetWidth();
+		d[i].y = (float)cameraCorners[0][i].y;//mouseY/(float)ofGetHeight();
+		//
+	//	cout<<i<<" "<<d[i].x<<" "<<d[i].y<<endl;
+
 	}
+	camera1.updateWarp(d);
 }
 
 void testApp::draw(){
 	//OpenGL stuff
 	glEnable(GL_DEPTH_TEST);
-	glOrtho(-1.0, 1.0, -1.0, 1.0, 50, 100);
-	ofBackground(0,0,0);	
+
+
 	
 //Lights
 	float L1DirectionX = 0.4;
 	float L1DirectionY = -0.4;
 	float L1DirectionZ = 1.0;
 	
-	light1.directionalLight(50, 50, 50, L1DirectionX, L1DirectionY, L1DirectionZ);
+	light1.directionalLight(255, 255, 255, L1DirectionX, L1DirectionY, L1DirectionZ);
 	//light1.pointLight(250, 250, 250, ((768*3)/6*1), 1024/2, -200.0);
 
 	ofxLightsOn(); //turn lights on
@@ -431,23 +424,24 @@ void testApp::draw(){
 	}
 	CvPoint2D32f cvsrc[4];
 	CvPoint2D32f cvdst[4];	
-	cvdst[0].x = 0;
-	cvdst[0].y = 0;
-	cvdst[1].x = ofGetWidth()/3.0;
-	cvdst[1].y = 0;
-	cvdst[2].x = ofGetWidth()/3.0;
-	cvdst[2].y = ofGetHeight();
-	cvdst[3].x = 0;
-	cvdst[3].y = ofGetHeight();		
 	
-	cvsrc[1].x = 0;
-	cvsrc[1].y = 0;
-	cvsrc[2].x = ofGetWidth();
+	cvdst[0].x = ofGetWidth()/3.0*projectorCorners[0][0].x;
+	cvdst[0].y = ofGetHeight()*projectorCorners[0][0].y;
+	cvdst[1].x = ofGetWidth()/3.0*projectorCorners[0][1].x;
+	cvdst[1].y = ofGetHeight()*projectorCorners[0][1].y;
+	cvdst[2].x = ofGetWidth()/3.0*projectorCorners[0][2].x;
+	cvdst[2].y = ofGetHeight()*projectorCorners[0][2].y;
+	cvdst[3].x = ofGetWidth()/3.0*projectorCorners[0][3].x;
+	cvdst[3].y = ofGetHeight()*projectorCorners[0][3].y;		
+	
+	cvsrc[2].x = 0;
 	cvsrc[2].y = 0;
 	cvsrc[3].x = ofGetWidth();
-	cvsrc[3].y = ofGetHeight();
-	cvsrc[0].x = 0;
-	cvsrc[0].y = ofGetHeight();		
+	cvsrc[3].y = 0;
+	cvsrc[0].x = ofGetWidth();
+	cvsrc[0].y = ofGetHeight();
+	cvsrc[1].x = 0;
+	cvsrc[1].y = ofGetHeight();		
 
 	CvMat * translate = cvCreateMat(3,3,CV_32FC1);
 	CvMat* src_mat = cvCreateMat( 4, 2, CV_32FC1 );
@@ -464,14 +458,26 @@ void testApp::draw(){
 	myMatrix[13]	= matrix[5];		
 	myMatrix[3]		= matrix[6];
 	myMatrix[7]		= matrix[7];
-	myMatrix[15]	= matrix[8];			
+	myMatrix[15]	= matrix[8];	
+
 	glMultMatrixf(myMatrix);
+	glOrtho(-1.0, 1.0, -4.0/3.0, 4.0/3.0, 50, 100);	
 	glScaled(4.0, 1.0, 1.0); 
 	drawViewport();
 	glPopMatrix();	
 //Screen 2
 	glPushMatrix();
 	glTranslatef( ofGetWidth()/3.0, 0, 0);
+	
+	cvdst[0].x = ofGetWidth()/3.0*projectorCorners[1][0].x;
+	cvdst[0].y = ofGetHeight()*projectorCorners[1][0].y;
+	cvdst[1].x = ofGetWidth()/3.0*projectorCorners[1][1].x;
+	cvdst[1].y = ofGetHeight()*projectorCorners[1][1].y;
+	cvdst[2].x = ofGetWidth()/3.0*projectorCorners[1][2].x;
+	cvdst[2].y = ofGetHeight()*projectorCorners[1][2].y;
+	cvdst[3].x = ofGetWidth()/3.0*projectorCorners[1][3].x;
+	cvdst[3].y = ofGetHeight()*projectorCorners[1][3].y;		
+	
 	cvsrc[1].x = 0;
 	cvsrc[1].y = 0;
 	cvsrc[2].x = ofGetWidth();
@@ -493,6 +499,8 @@ void testApp::draw(){
 	myMatrix[7]		= matrix[7];
 	myMatrix[15]	= matrix[8];		
 	glMultMatrixf(myMatrix);
+	glOrtho(-1.0, 1.0, -4.0/3.0, 4.0/3.0, 50, 100);
+
 	glScaled(4.0, 1.0, 1.0); 
 	glTranslatef(-ofGetHeight(), 0, 0);
 	drawViewport();
@@ -508,6 +516,15 @@ void testApp::draw(){
 	cvsrc[3].y = ofGetHeight();
 	cvsrc[0].x = 0;
 	cvsrc[0].y = ofGetHeight();		
+	cvdst[0].x = ofGetWidth()/3.0*projectorCorners[2][0].x;
+	cvdst[0].y = ofGetHeight()*projectorCorners[2][0].y;
+	cvdst[1].x = ofGetWidth()/3.0*projectorCorners[2][1].x;
+	cvdst[1].y = ofGetHeight()*projectorCorners[2][1].y;
+	cvdst[2].x = ofGetWidth()/3.0*projectorCorners[2][2].x;
+	cvdst[2].y = ofGetHeight()*projectorCorners[2][2].y;
+	cvdst[3].x = ofGetWidth()/3.0*projectorCorners[2][3].x;
+	cvdst[3].y = ofGetHeight()*projectorCorners[2][3].y;		
+	
 	cvSetData( src_mat, cvsrc, sizeof(CvPoint2D32f));
 	cvFindHomography(src_mat, dst_mat, translate);
 	matrix = translate->data.fl;
@@ -521,17 +538,18 @@ void testApp::draw(){
 	myMatrix[7]		= matrix[7];
 	myMatrix[15]	= matrix[8];		
 	glMultMatrixf(myMatrix);
+	glOrtho(-1.0, 1.0, -4.0/3.0, 4.0/3.0, 50, 100);
+
 	glScaled(4.0, 1.0, 1.0); 
 	glTranslatef(-ofGetHeight()*2, 0, 0);
 	drawViewport();
 	glPopMatrix();
 #else
-	
+	gluOrtho2D(1., 0., 4.0/3.0, 0.);
 	drawViewport();
-//	glDisable(GL_DEPTH_TEST);
-	
 	
 #endif
+
 
 }
 
@@ -558,15 +576,25 @@ void testApp::drawViewport(){
 	pos = trans.getOrigin();
 	//basis[i] = trans[i].getBasis();
 	glPushMatrix();
-		glTranslatef((float)pos.getX(),pos.getY(), 300);
+		glTranslatef((float)pos.getX()*100-10,pos.getY()*100-10, 0);
 		ofFill();
 		ofSetColor(255, 0, 0);
-		ofCircle(0,0,30);
+		ofRect(0,0,20,20);
 	glPopMatrix();
-
+	glPushMatrix();
+	glTranslatef(mouseX*3.0/4.0-10,mouseY*4.0/3.0-10, 0);
+	ofFill();
+	ofSetColor(0, 255, 0);
+	ofRect(0,0,20,20);
+	glPopMatrix();
 	
+	
+	if(debug)
+		camera1.draw(ofGetHeight(), ofGetWidth()/3.0);
+	
+	
+
 	//videoTexture.draw(0,0);	
-	camera1.draw(ofGetHeight(), ofGetWidth()/3.0);
 
 	
 	// Draw Frame
@@ -585,6 +613,12 @@ void testApp::drawViewport(){
 void testApp::keyPressed  (int key){ 
 	
 	switch (key){
+		case 'a':
+			camera1.simplify->damp = 0;
+			break;
+		case 'z':
+			camera1.simplify->damp = 0.09;
+			break;
 		case '1':
 			cornerWarperIndex = 0;
 			break;
@@ -611,24 +645,31 @@ void testApp::keyPressed  (int key){
 		case 'v':
 			vidTracker.videoSettings();
 			break;
-		case ' ':
+		case 'd':
+			debug = !debug;
+			break;
+		case 's':
+				dynamicsWorld->stepSimulation(1.0f/60.f,0);
+			break;
+		case 'r':
+//			text->clear();
+
+			
+		case 'p':
 			int numLetters = text->getNumberLetters();
 			for(int i=0; i<numLetters; i++){
-				dynamicsWorld->addRigidBody(bodies[i]);
+			//	dynamicsWorld->addRigidBody(bodies[i]);
 			}
 			numLetters = text2->getNumberLetters();
 			for(int i=0; i<numLetters; i++){
-				dynamicsWorld->addRigidBody(bodies2[i]);
+			//	dynamicsWorld->addRigidBody(bodies2[i]);
 			}
 			numLetters = text3->getNumberLetters();
 			for(int i=0; i<numLetters; i++){
-				dynamicsWorld->addRigidBody(bodies3[i]);
+			//	dynamicsWorld->addRigidBody(bodies3[i]);
 			}
 			break;
-
 	}
-	
-	
 	
 	//makeSnaps = true;
 }
@@ -655,5 +696,4 @@ void testApp::mousePressed(int x, int y, int button){
 
 //--------------------------------------------------------------
 void testApp::mouseReleased(){
-//	ofxSetSmoothLight(true);
 }
