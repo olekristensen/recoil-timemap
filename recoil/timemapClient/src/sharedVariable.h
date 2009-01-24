@@ -138,7 +138,8 @@ public:
 		
 	}
 	
-	void handleOsc(ofxOscMessage *m){					   
+	void handleOsc(ofxOscMessage *m){		
+		cout<<m->getAddress()<<" "<< m->getArgAsFloat(0)<<endl;
 		if ( strcmp( m->getAddress(), ("/sharedvariable/"+id).c_str() ) == 0 ){
 			if(type == SHARED_BOOL){
 				*valueBool = m->getArgAsInt32(0);

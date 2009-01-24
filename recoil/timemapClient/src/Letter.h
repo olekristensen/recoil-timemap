@@ -1,5 +1,6 @@
 #ifndef RECOIL_LETTER
 #define RECOIL_LETTER
+#define OF_ADDON_USING_OFXBULLET
 
 #include "ofMain.h"
 #include "ofAddons.h"
@@ -10,6 +11,7 @@
 class Letter : public Particle, TextObject  {
 public:	
 	GLdouble matrix[16]; 
+	btRigidBody *bulletBodie;
 
 	Letter(string _letter, TextFontHolder* _font, int _depth, int _forcedWidth = 0){
 			forcedWidth = _forcedWidth;
@@ -36,14 +38,14 @@ public:
 		
 		
 		glPushMatrix();		
-		glTranslated(loc.x, loc.y, loc.z);		
+	/*	glTranslated(loc.x, loc.y, loc.z);		
 		glMultMatrixd(matrix);		
 		glTranslated(-getWidth()/2.0,-getFont()->getCalculatedHeight()/2.0, 0);
 	
 		//** BOUNDING BOX BEGIN
 		ofDisableAlphaBlending();	
 		glPushMatrix();
-		ofSetColor(05, 05, 05);
+		ofSetColor(40, 40, 40);
 		//ofSetColor(0, 0, 255);
 		glNormal3d(0.0,0.0,-1.0);
 		
