@@ -20,78 +20,105 @@
 
 #define USE_TRIPLEHEAD 
 
+class btBroadphaseInterface;
+class btCollisionShape;
+class btOverlappingPairCache;
+class btCollisionDispatcher;
+class btConstraintSolver;
+class btDefaultCollisionConfiguration;
+
 class testApp : public ofSimpleApp{
 	
-	public:
-		
-		void setup();
-		void update();
-		void draw();
-		void drawViewport();
-		
-		void keyPressed(int key);
-		void keyReleased(int key);
-		void mouseMoved(int x, int y );
-		void mouseDragged(int x, int y, int button);
-		void mousePressed(int x, int y, int button);
-		void mouseReleased();
-		void bulletSetup();
+public:
 	
-		ofxOscReceiver	receiver;
-		ofxOscSender sender;
-		
-		vector<SharedVariable> sharedVariables;
-
-		float fade;
-		
-/*		ofVideoGrabber vidGrabber;
-		unsigned char videoHistory[HISTORYSIZE][PICTURESIZE];
-		int historyIndex;		
-		ofTexture videoTexture;
-		int showIndex;*/
+	void setup();
+	void update();
+	void draw();
+	void drawViewport();
+	
+	void keyPressed(int key);
+	void keyReleased(int key);
+	void mouseMoved(int x, int y );
+	void mouseDragged(int x, int y, int button);
+	void mousePressed(int x, int y, int button);
+	void mouseReleased();
+	void bulletSetup();
+	
+	btScalar	getDeltaTimeMicroseconds(){
+		btScalar dt = clock.getTimeMicroseconds();
+		clock.reset();
+		return dt;
+	}
+	
+	ofxOscReceiver	receiver;
+	ofxOscSender sender;
+	
+	vector<SharedVariable> sharedVariables;
+	
+	float fade;
+	
+	/*		ofVideoGrabber vidGrabber;
+	 unsigned char videoHistory[HISTORYSIZE][PICTURESIZE];
+	 int historyIndex;		
+	 ofTexture videoTexture;
+	 int showIndex;*/
 	
 	//Video tracker
-		ofVideoGrabber vidTracker;
+	ofVideoGrabber vidTracker;
 	//of1394VideoGrabber 	vidGrabber;
-
-		ofTexture trackerTexture;
-		
-		ofxCvColorImage		colorImg;
 	
-		TextFontHolder * font1;
-		Text* text, *text2, *text3;
+	ofTexture trackerTexture;
 	
-		btDiscreteDynamicsWorld * dynamicsWorld;	
-		
-		btRigidBody * groundRigidBody;	
-		//btRigidBody **bodies, **bodies2, **bodies3;
-		vector<btRigidBody*> bodies;
+	ofxCvColorImage		colorImg;
 	
-		btRigidBody *collider;
+	TextFontHolder * font1;
+	Text* text, *text2, *text3;
+	
+	btDiscreteDynamicsWorld * dynamicsWorld;
+	btDefaultCollisionConfiguration* collisionConfiguration;
+	btBroadphaseInterface* broadphase;
+	btCollisionDispatcher* dispatcher;
+	btConstraintSolver* solver;
+	
+	class	btThreadSupportInterface*		threadSupportCollision;
+	class	btThreadSupportInterface*		threadSupportSolver;
+	
+	
+	btRigidBody * groundRigidBody;	
+	//btRigidBody **bodies, **bodies2, **bodies3;
+	vector<btRigidBody*> bodies;
+	
+	btRigidBody *collider;
+	btRigidBody *silhouette;
 	
 	btSoftBodyWorldInfo	m_softBodyWorldInfo;
-
-
-
-		int millisForUpdate;
 	
-		int					snapCounter;
-		char 				snapString[255];
-		ofImage 			img;
-		bool				makeSnaps;
+	int millisForUpdate;
+	btClock clock;
 	
-		ofxLight light1; 
-		bool bSmoothLight;
+	int					snapCounter;
+	char 				snapString[255];
+	ofImage 			img;
+	bool				makeSnaps;
 	
-		ofPoint cameraCorners[3][4];
-		ofPoint projectorCorners[3][4];
-
-		Camera camera1;
-		ofPoint point;
-		int cornerWarperIndex;
+	ofxLight light1; 
+	bool bSmoothLight;
 	
-		bool debug;
+	ofPoint cameraCorners[3][4];
+	ofPoint projectorCorners[3][4];
+	
+	Camera camera1;
+	ofPoint point;
+	
+	btVector3* silhouettePoints;
+	int numSilhouettePoints;
+	
+	int cornerWarperIndex;
+	
+	bool debug;
+	
+	
 };
 
 #endif
-	
+

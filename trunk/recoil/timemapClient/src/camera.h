@@ -60,7 +60,7 @@ public:
 		dst[2] = ofxPoint2f(1,1);
 		dst[3] = ofxPoint2f(0,1);		
 		coordwarp.calculateMatrix(src, dst);
-		simplify = new ofxBlobSimplify(20, 1, 1, 0.3);
+		simplify = new ofxBlobSimplify(20, 1, 1, 0.4);
 	}
 	
 	void updateWarp(ofxPoint2f  dstIn[4]){
@@ -96,6 +96,8 @@ public:
 				}
 			}
 			simplify->update(&contourFinder.blobs);
+		} else {
+			simplify->hasBlob = false;
 		}
 	}
 	

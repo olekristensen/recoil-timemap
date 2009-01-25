@@ -38,11 +38,11 @@ public:
 		
 		
 		glPushMatrix();		
-	/*	glTranslated(loc.x, loc.y, loc.z);		
+	//*	glTranslated(loc.x, loc.y, loc.z);		
 		glMultMatrixd(matrix);		
 		glTranslated(-getWidth()/2.0,-getFont()->getCalculatedHeight()/2.0, 0);
 	
-		//** BOUNDING BOX BEGIN
+		/** BOUNDING BOX BEGIN
 		ofDisableAlphaBlending();	
 		glPushMatrix();
 		ofSetColor(40, 40, 40);
