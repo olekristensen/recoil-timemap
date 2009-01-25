@@ -1,13 +1,19 @@
+#define USE_PARALLEL_DISPATCHER 1
+
 #include "testApp.h"
 
 
 #include <FTGL/ftgl.h>
+
+const int maxProxies = 32766;
+const int maxOverlap = 65535;
+
 //--------------------------------------------------------------
 void testApp::setup(){	 
 	//General setup
 	//ofHideCursor();
 	ofBackground(0, 0, 0);
-	ofSetFrameRate(60);
+	ofSetFrameRate(120);
 	makeSnaps = false;
 	memset(snapString, 0, 255);		// clear the string by setting all chars to 0
 	snapCounter = 0;
@@ -62,21 +68,21 @@ void testApp::setup(){
 	
 	//---Texts---
 	//font
- 	font1 = new TextFontHolder("ArnoPro-Display.otf", 50);
+ 	font1 = new TextFontHolder("ArnoPro-Display.otf", 40);
 	text = new Text();
 	text->setText("Når andre kan læse ens tanker, hvordan undgår man så at vise sine tanker - man kan ikke helt lade være at tænke - men man kan tænke på noget andet, dække sine egne tanker gennem bevidst og konsekvent at referere andres mulige tanker? Eller? Hvordan forløber et forhør under de omstændigheder? Intet behøver at blive sagt.");
 	text->setFont(font1);
 	text->setWordBlocks(true);
-	text->setDepth(60);
+	text->setDepth(100);
 	text->setWidth(600);
-	text->setLineHeight(50*1.0);
+	text->setLineHeight(40*1.0);
 	text->constructText();
 	text->translate(100,ofGetWidth()/3.0-text->getHeight()-100,0);
 	text->setupBullet(dynamicsWorld, &bodies);
 
 	
 	text2 = new Text();
-	text2->setText("  ");
+	text2->setText("");
 	text2->setWordBlocks(true);
 	text2->setFont(font1);
 	text2->setDepth(20);
@@ -85,7 +91,7 @@ void testApp::setup(){
 	text2->constructText();
 	text2->translate(100+ofGetHeight(),ofGetWidth()/3.0-text2->getHeight()-100,10);
 	text2->setupBullet(dynamicsWorld, &bodies);
-
+	
 	text3 = new Text();
 	text3->setText("Has cu etiam legere iuvaret, pri malorum fuisset tibiqu");
 	text3->setWordBlocks(true);
@@ -96,10 +102,6 @@ void testApp::setup(){
 	text3->constructText();
 	text3->translate(100+ofGetHeight()*2,ofGetWidth()/3.0-text3->getHeight()-100,0);
 	text3->setupBullet(dynamicsWorld, &bodies);
-
-	
-	millisForUpdate = ofGetElapsedTimeMillis();
-	
 	
 	//---
 	//Light
@@ -117,6 +119,7 @@ void testApp::setup(){
 	//light3.diffuse(255,255,255);
 	//light3.ambient(0,0,0); //this basically tints everything with its color, by default is 0,0,0.
 	ofxSetSmoothLight(true);
+	ofEnableSmoothing();
 	
 	vidTracker.setVerbose(true);
 	vidTracker.initGrabber(720,576);
@@ -145,25 +148,132 @@ static inline btVector3	Vector3Rand()
 
 //--------------------------------------------------------------
 void testApp::bulletSetup(){
+
+#ifdef USE_PARALLEL_DISPATCHER
+
+		threadSupportSolver = 0;
+		threadSupportCollision = 0;
+#endif
+		
+		dispatcher=0;
+		collisionConfiguration = new btDefaultCollisionConfiguration();
+		
+#ifdef USE_PARALLEL_DISPATCHER
+		int maxNumOutstandingTasks = 4;
+		
+#ifdef USE_WIN32_THREADING
+		
+		threadSupportCollision = new Win32ThreadSupport(Win32ThreadSupport::Win32ThreadConstructionInfo(
+																										  "collision",
+																										  processCollisionTask,
+																										  createCollisionLocalStoreMemory,
+																										  maxNumOutstandingTasks));
+#else
+		
+#ifdef USE_LIBSPE2
+		
+		spe_program_handle_t * program_handle;
+#ifndef USE_CESOF
+		program_handle = spe_image_open ("./spuCollision.elf");
+		if (program_handle == NULL)
+		{
+			perror( "SPU OPEN IMAGE ERROR\n");
+		}
+		else
+		{
+			printf( "IMAGE OPENED\n");
+		}
+#else
+		extern spe_program_handle_t spu_program;
+		program_handle = &spu_program;
+#endif
+        SpuLibspe2Support* threadSupportCollision  = new SpuLibspe2Support( program_handle, maxNumOutstandingTasks);
+#elif defined (USE_PTHREADS)
+		PosixThreadSupport::ThreadConstructionInfo constructionInfo("collision",
+																	processCollisionTask,
+																	createCollisionLocalStoreMemory,
+																	maxNumOutstandingTasks);
+		threadSupportCollision = new PosixThreadSupport(constructionInfo);
+	cout<<"paralllel"<<endl;
+
+#else
+		
+		SequentialThreadSupport::SequentialThreadConstructionInfo colCI("collision",processCollisionTask,createCollisionLocalStoreMemory);
+		SequentialThreadSupport* threadSupportCollision = new SequentialThreadSupport(colCI);
+		
+#endif //USE_LIBSPE2
+		
+		///Playstation 3 SPU (SPURS)  version is available through PS3 Devnet
+		/// For Unix/Mac someone could implement a pthreads version of btThreadSupportInterface?
+		///you can hook it up to your custom task scheduler by deriving from btThreadSupportInterface
+#endif
+		
+		
+		dispatcher = new	SpuGatheringCollisionDispatcher(threadSupportCollision,maxNumOutstandingTasks,collisionConfiguration);
+#else
+		
+		dispatcher = new	btCollisionDispatcher(collisionConfiguration);
+#endif //USE_PARALLEL_DISPATCHER
+		
 	btVector3 worldAabbMin(0,0,0);
 	btVector3 worldAabbMax(ofGetWidth(), ofGetHeight(), 1000);
-	int maxProxies = 2048;
-//	btAxisSweep3* broadphase = new btAxisSweep3(worldAabbMin,worldAabbMax,maxProxies);
-	btDbvtBroadphase* broadphase = new btDbvtBroadphase();
-	btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
-	btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
-	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
-	dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,broadphase,solver,collisionConfiguration);
-	dynamicsWorld->setGravity(btVector3(0,10,0));
+	
+	broadphase = new btDbvtBroadphase();
 
-//Ground 	
+		
+		
+#ifdef USE_PARALLEL_SOLVER
+
+#ifdef USE_WIN32_THREADING
+		threadSupportSolver = new Win32ThreadSupport(Win32ThreadSupport::Win32ThreadConstructionInfo(
+																									   "solver",
+																									   processSolverTask,
+																									   createSolverLocalStoreMemory,
+																									   maxNumOutstandingTasks));
+#elif defined (USE_PTHREADS)
+		PosixThreadSupport::ThreadConstructionInfo solverConstructionInfo("solver", processSolverTask,
+																		  createSolverLocalStoreMemory, maxNumOutstandingTasks);
+		
+    	threadSupportSolver = new PosixThreadSupport(solverConstructionInfo);
+#else
+		//for now use sequential version	
+		SequentialThreadSupport::SequentialThreadConstructionInfo solverCI("solver",processSolverTask,createSolverLocalStoreMemory);
+		threadSupportSolver = new SequentialThreadSupport(solverCI);
+		
+#endif //USE_WIN32_THREADING
+		solver = new btParallelSequentialImpulseSolver(threadSupportSolver,maxNumOutstandingTasks);
+		
+#else
+		
+		btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver();
+		
+		solver = solver;
+		//default solverMode is SOLVER_RANDMIZE_ORDER. Warmstarting seems not to improve convergence, see 
+		//solver->setSolverMode(0);//btSequentialImpulseConstraintSolver::SOLVER_USE_WARMSTARTING | btSequentialImpulseConstraintSolver::SOLVER_RANDMIZE_ORDER);
+		
+#endif //USE_PARALLEL_SOLVER
+		
+		
+		
+	dispatcher = new btCollisionDispatcher(collisionConfiguration);
+	
+	dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,broadphase,solver,collisionConfiguration);
+
+	dynamicsWorld->getSolverInfo().m_numIterations = 4;
+	dynamicsWorld->getSolverInfo().m_solverMode = SOLVER_SIMD+SOLVER_USE_WARMSTARTING;
+	
+	dynamicsWorld->getDispatchInfo().m_enableSPU = true;
+	dynamicsWorld->setGravity(btVector3(0,10,0));
+	
+	
+	//Ground 	
 	btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0,-1,0),1);
 	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3((ofGetHeight()/2.0)/100.0,(ofGetWidth()/3.0)/100.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
 	groundRigidBody = new btRigidBody(groundRigidBodyCI);
 	dynamicsWorld->addRigidBody(groundRigidBody);
-
-//Collider
+	
+	//Collider
 	btCollisionShape* fallShape = new btBoxShape(btVector3(0.1,0.1,6000));
 	btVector3 pos = btVector3(1,1,0);
 	btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
@@ -177,8 +287,8 @@ void testApp::bulletSetup(){
 	collider->setCollisionFlags( collider->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	collider->setActivationState(DISABLE_DEACTIVATION);
 	dynamicsWorld->addRigidBody(collider);
-	
-/*	//TRACEDEMO
+		
+	/*	//TRACEDEMO
 	const btScalar	s=2;
 	const btScalar	h=10;
 	const int		segments=6;
@@ -217,63 +327,9 @@ void testApp::bulletSetup(){
 
 //--------------------------------------------------------------
 void testApp::update(){
-	float dt = ((ofGetElapsedTimeMillis()-millisForUpdate))* 0.000001f;
+//	float dt = ((ofGetElapsedTimeMillis()-millisForUpdate))* 0.000001f;
 //	dt = 0.003407;
 	//int t = ofGetElapsedTimeMillis();1
-	int maxSimSubSteps = 1;
-	int numSimSteps = 0;
-	numSimSteps = dynamicsWorld->stepSimulation(dt,maxSimSubSteps);
-//	cout<<dt<<endl;
-	//dynamicsWorld->stepSimulation(1.0f/60.f,0);
-
-	//cout<<(ofGetElapsedTimeMillis()-millisForUpdate)/2.0<<endl;
-//	dynamicsWorld->stepSimulation(1.0/60.0,100);
-	dynamicsWorld->stepSimulation((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0f, 20, btScalar(1.)/btScalar(100.));
-//	cout << ((ofGetElapsedTimeMillis()-millisForUpdate)/1000.0) << " < " << 20 * (1.0/150.0) << endl;
-	millisForUpdate = ofGetElapsedTimeMillis();
-
-	int numLetters = text->getNumberLetters()+text2->getNumberLetters()+text3->getNumberLetters();
-	btTransform trans[numLetters];
-	btVector3 pos[numLetters];
-	btMatrix3x3 basis[numLetters];
-	vector<Letter*> l;
-	
-	for(int i=0; i<numLetters; i++){
-		bodies[i]->getMotionState()->getWorldTransform(trans[i]);
-		if(i<text->getNumberLetters()){
-			l.push_back(text->getLetter(i));
-		}
-		else if(i<text->getNumberLetters()+text2->getNumberLetters()){
-			l.push_back(text2->getLetter(i-text->getNumberLetters()));
-		}
-		else {
-			l.push_back(text3->getLetter(i-text->getNumberLetters()-text2->getNumberLetters()));
-		}
-		
-		pos[i] = trans[i].getOrigin();
-		basis[i] = trans[i].getBasis();		
-	}
-	
-	#pragma omp parallel for 
-	for(int i=0; i<numLetters; i++){
-		l[i]->setPosition(pos[i].getX()*100, pos[i].getY()*100, pos[i].getZ()*100);
-		l[i]->matrix[0] = basis[i].getRow(0)[0];
-		l[i]->matrix[4] = basis[i].getRow(0)[1];
-		l[i]->matrix[8] = basis[i].getRow(0)[2];
-		l[i]->matrix[12] = 0;
-		l[i]->matrix[1] = basis[i].getRow(1)[0];
-		l[i]->matrix[5] = basis[i].getRow(1)[1];
-		l[i]->matrix[9] = basis[i].getRow(1)[2];
-		l[i]->matrix[13] = 0;
-		l[i]->matrix[2] = basis[i].getRow(2)[0];
-		l[i]->matrix[6] = basis[i].getRow(2)[1];
-		l[i]->matrix[10] = basis[i].getRow(2)[2];
-		l[i]->matrix[14] = 0;
-		l[i]->matrix[3] = 0;
-		l[i]->matrix[7] = 0;
-		l[i]->matrix[11] = 0;
-		l[i]->matrix[15] = 1;
-	}
 	
 	//Camerastuff
 /*	vidGrabber.grabFrame();
@@ -353,6 +409,30 @@ void testApp::update(){
 	}
 	
 	
+	// Silhouette
+	
+	btConvexHullShape * silhouetteShape = new btConvexHullShape();
+	if(camera1.contourFinder.nBlobs > 0){
+		for(int i=0;i<camera1.simplify->numPoints;i++){
+			silhouetteShape->addPoint(btVector3(camera1.simplify->points[i].x*ofGetHeight()/100.0, camera1.simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
+			silhouetteShape->addPoint(btVector3(camera1.simplify->points[i].x*ofGetHeight()/100.0, camera1.simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
+			//cout<<camera1.simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera1.simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
+		}
+	}
+	btVector3 silhouettePos = btVector3(0,0,0);
+	btDefaultMotionState* silhouetteMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),silhouettePos));
+	btScalar silhouetteMass = 0;
+	btVector3 silhouetteFallInertia(0,0,0);
+	silhouetteShape->calculateLocalInertia(silhouetteMass,silhouetteFallInertia);
+	btRigidBody::btRigidBodyConstructionInfo silhouetteRigidBodyCI(silhouetteMass,silhouetteMotionState,silhouetteShape,silhouetteFallInertia);
+	silhouette = new btRigidBody(silhouetteRigidBodyCI);
+	//silhouette->setGravity(btVector3(0.,0.,0.));
+	//silhouette->setDamping(0.99,0.9);
+	silhouette->setCollisionFlags( silhouette->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
+	silhouette->setActivationState(DISABLE_DEACTIVATION);
+	
+	dynamicsWorld->addRigidBody(silhouette);
+	
 	//Collider
 
 	if(mouseX > 0 && mouseX < ofGetWidth()){
@@ -396,6 +476,82 @@ void testApp::update(){
 
 	}
 	camera1.updateWarp(d);
+	
+	
+#ifdef FIXED_STEP
+	dynamicsWorld->stepSimulation(1.0f/60.f,0);
+	//CProfileManager::dumpAll();
+	
+#else
+	
+	float dt = getDeltaTimeMicroseconds() * 0.000001f;
+	
+	int maxSimSubSteps = 20;
+	int numSimSteps = 0;
+	numSimSteps = dynamicsWorld->stepSimulation(dt,maxSimSubSteps, btScalar(1.)/btScalar(60.));
+	/*
+	 if (!numSimSteps)
+	 printf("Interpolated transforms\n");
+	 else
+	 {
+	 if (numSimSteps > maxSimSubSteps)
+	 {
+	 //detect dropping frames
+	 printf("Dropped (%i) simulation steps out of %i\n",numSimSteps - maxSimSubSteps,numSimSteps);
+	 } else
+	 {
+	 printf("Simulated (%i) steps\n",numSimSteps);
+	 }
+	 }
+	 
+	 //*/
+#endif
+	
+	int numLetters = text->getNumberLetters()+text2->getNumberLetters()+text3->getNumberLetters();
+	btTransform trans[numLetters];
+	btVector3 pos[numLetters];
+	btMatrix3x3 basis[numLetters];
+	vector<Letter*> l;
+	
+	for(int i=0; i<numLetters; i++){
+		bodies[i]->getMotionState()->getWorldTransform(trans[i]);
+		if(i<text->getNumberLetters()){
+			l.push_back(text->getLetter(i));
+		}
+		else if(i<text->getNumberLetters()+text2->getNumberLetters()){
+			l.push_back(text2->getLetter(i-text->getNumberLetters()));
+		}
+		else {
+			l.push_back(text3->getLetter(i-text->getNumberLetters()-text2->getNumberLetters()));
+		}
+		
+		pos[i] = trans[i].getOrigin();
+		basis[i] = trans[i].getBasis();		
+	}
+	
+#pragma omp parallel for 
+	for(int i=0; i<numLetters; i++){
+		l[i]->setPosition(pos[i].getX()*100, pos[i].getY()*100, pos[i].getZ()*100);
+		l[i]->matrix[0] = basis[i].getRow(0)[0];
+		l[i]->matrix[4] = basis[i].getRow(0)[1];
+		l[i]->matrix[8] = basis[i].getRow(0)[2];
+		l[i]->matrix[12] = 0;
+		l[i]->matrix[1] = basis[i].getRow(1)[0];
+		l[i]->matrix[5] = basis[i].getRow(1)[1];
+		l[i]->matrix[9] = basis[i].getRow(1)[2];
+		l[i]->matrix[13] = 0;
+		l[i]->matrix[2] = basis[i].getRow(2)[0];
+		l[i]->matrix[6] = basis[i].getRow(2)[1];
+		l[i]->matrix[10] = basis[i].getRow(2)[2];
+		l[i]->matrix[14] = 0;
+		l[i]->matrix[3] = 0;
+		l[i]->matrix[7] = 0;
+		l[i]->matrix[11] = 0;
+		l[i]->matrix[15] = 1;
+	}
+	if(camera1.contourFinder.nBlobs > 0){
+		dynamicsWorld->removeRigidBody(silhouette);
+	}
 }
 
 void testApp::draw(){
@@ -416,7 +572,6 @@ void testApp::draw(){
 
 #ifdef USE_TRIPLEHEAD
 //The screens
-	glPushMatrix();
 	GLfloat myMatrix[16];
 	for(int i = 0; i < 16; i++){
 		if(i % 5 != 0) myMatrix[i] = 0.0;
@@ -424,7 +579,9 @@ void testApp::draw(){
 	}
 	CvPoint2D32f cvsrc[4];
 	CvPoint2D32f cvdst[4];	
-	
+
+	glPushMatrix();
+
 	cvdst[0].x = ofGetWidth()/3.0*projectorCorners[0][0].x;
 	cvdst[0].y = ofGetHeight()*projectorCorners[0][0].y;
 	cvdst[1].x = ofGetWidth()/3.0*projectorCorners[0][1].x;
@@ -592,7 +749,8 @@ void testApp::drawViewport(){
 	if(debug)
 		camera1.draw(ofGetHeight(), ofGetWidth()/3.0);
 	
-	
+	dynamicsWorld->debugDrawWorld();
+
 
 	//videoTexture.draw(0,0);	
 

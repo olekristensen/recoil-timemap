@@ -221,6 +221,7 @@ public:
 			Letter * l = getLetter(i);
 			btCollisionShape* fallShape = new btBoxShape(btVector3((getLetter(i)->getWidth()-1)/200.0,(l->getFont()->getCalculatedHeight()/200.0),getLetter(i)->getDepth()/200.0));
 			btVector3 pos = btVector3(l->getLoc().x/100.0, l->getLoc().y/100.0, l->getLoc().z/100.0);
+			cout<< l->getLoc().x/100.0 << ", "<<l->getLoc().y/100.0<<endl;
 			btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
 			btScalar mass = 1.0;
 			btVector3 fallInertia(0,0,0);
