@@ -41,8 +41,7 @@ public:
 		//Start by erasing the text. Should be edited later to be more inteligent
 		this->clear();
 		
-		string text = trim_copy(_text);
-		//string text = (_text);
+		string text = trim_copy_if(_text, is_any_of(" "));
 		while(find_first(text, "  ")){
 			replace_all(text, "  ", " ");
 		}
@@ -58,7 +57,12 @@ public:
 			if(i == text.size() || text.at(i) == ' ' || text.at(i) == '\n') {
 				if(i < text.size()){
 					if(text.at(i) == '\n'){
-						cur_word += "\n";
+						if(wordBlocks){
+							words.push_back(Word(cur_word, font, depth, wordBlocks));
+							cur_word = "\n";
+						} else {
+							cur_word += "\n";
+						}
 					}
 					if(text.at(i) == ' '){
 						cur_word += " ";
@@ -91,6 +95,7 @@ public:
 				if(words[i].letters[j].getLetter() == "\n"){
 					countX = 0;
 					countY += words[i].letters[0].getFont()->getCalculatedHeight();
+					lines.push_back(vector<Word*>());
 				}
 			}
 		}
@@ -124,7 +129,6 @@ public:
 	}
 	
 	void drawText(){
-
 		for(int i=0;i< words.size(); i++){
 			words[i].drawText();
 		}
@@ -214,30 +218,45 @@ public:
 	}
 	
 	
-	void setupBullet(btDiscreteDynamicsWorld * dynamicsWorld, vector<btRigidBody*>* bodies){
+	void setupBullet(btDiscreteDynamicsWorld * _dynamicsWorld, vector<btRigidBody*>* _bodies){
+		bodies = _bodies;
+		dynamicsWorld = _dynamicsWorld;
 		int numLetters = getNumberLetters();
-		//bodies = new btRigidBody*[numLetters];
 		for(int i=0; i<numLetters; i++){
 			Letter * l = getLetter(i);
 			btCollisionShape* fallShape = new btBoxShape(btVector3((getLetter(i)->getWidth()-1)/200.0,(l->getFont()->getCalculatedHeight()/200.0),getLetter(i)->getDepth()/200.0));
 			btVector3 pos = btVector3(l->getLoc().x/100.0, l->getLoc().y/100.0, l->getLoc().z/100.0);
-			cout<< l->getLoc().x/100.0 << ", "<<l->getLoc().y/100.0<<endl;
-			btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
+			//cout<< l->getLoc().x/100.0 << ", "<<l->getLoc().y/100.0<<endl;
+			btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.1),pos));
 			btScalar mass = 1.0;
 			btVector3 fallInertia(0,0,0);
 			fallShape->calculateLocalInertia(mass,fallInertia);
 			btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass,fallMotionState,fallShape,fallInertia);
 			l->bulletBodie = new btRigidBody(fallRigidBodyCI);
 			l->bulletBodie->setDamping(0,0);
-			l->bulletBodie->setFriction(.6);
-			l->bulletBodie->setDamping(0.99,0.99);
-
+			l->bulletBodie->setFriction(.2);
+			l->bulletBodie->setDamping(0.15,0.15);
+//			l->bulletBodie->setDamping(0.85,0.85);
 			bodies->push_back(l->bulletBodie);
 			//		bodies[i]->setRestitution(.5);
 			dynamicsWorld->addRigidBody(l->bulletBodie);
 		}	
 	}
 	void clear(){
+		int numLetters = getNumberLetters();
+		for(int i=0; i<numLetters; i++){
+			Letter * l = getLetter(i);
+			vector<btRigidBody*>::iterator iter = bodies->begin();
+			while( iter != bodies->end() )
+			{
+				if (*iter == l->bulletBodie)
+					iter = bodies->erase( iter );
+				else
+					++iter;
+			}
+			dynamicsWorld->removeRigidBody(l->bulletBodie);
+		}
+		
 		words.clear();
 		spacers.clear();
 		lines.clear();
@@ -250,6 +269,8 @@ private:
 	int width;
 	TextFontHolder * font;
 	bool wordBlocks;
+	vector<btRigidBody*>* bodies;
+	btDiscreteDynamicsWorld * dynamicsWorld;
 };
 
 #endif

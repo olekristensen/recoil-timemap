@@ -16,7 +16,8 @@
 #include "texts.h"
 #include "camera.h"
 #include "ofxBlobSimplify.h"
-#include "of1394VideoGrabber.h"
+//#include "of1394VideoGrabber.h"
+#include <AGL/agl.h>
 
 #define USE_TRIPLEHEAD 
 
@@ -32,17 +33,20 @@ class testApp : public ofSimpleApp{
 public:
 	
 	void setup();
+
+	void bulletSetup();
+	void textSetup();
+
 	void update();
 	void draw();
 	void drawViewport();
-	
+
 	void keyPressed(int key);
 	void keyReleased(int key);
 	void mouseMoved(int x, int y );
 	void mouseDragged(int x, int y, int button);
 	void mousePressed(int x, int y, int button);
 	void mouseReleased();
-	void bulletSetup();
 	
 	btScalar	getDeltaTimeMicroseconds(){
 		btScalar dt = clock.getTimeMicroseconds();
@@ -55,24 +59,24 @@ public:
 	
 	vector<SharedVariable> sharedVariables;
 	
-	float fade;
+	bool moveCameraCorners;
+	bool moveProjectorCorners;
+	int moveCameraCornersIndex;
+	int moveProjectorCornersIndex;
 	
-	/*		ofVideoGrabber vidGrabber;
-	 unsigned char videoHistory[HISTORYSIZE][PICTURESIZE];
-	 int historyIndex;		
-	 ofTexture videoTexture;
-	 int showIndex;*/
+	ofPoint cameraCorners[3][4];
+	ofPoint projectorCorners[3][4];
 	
-	//Video tracker
+	Camera camera1;
+	Camera camera2;
+	Camera camera3;
+		
 	ofVideoGrabber vidTracker;
-	//of1394VideoGrabber 	vidGrabber;
-	
 	ofTexture trackerTexture;
-	
 	ofxCvColorImage		colorImg;
 	
 	TextFontHolder * font1;
-	Text* text, *text2, *text3;
+	Text* text1, *text2, *text3;
 	
 	btDiscreteDynamicsWorld * dynamicsWorld;
 	btDefaultCollisionConfiguration* collisionConfiguration;
@@ -82,42 +86,72 @@ public:
 	
 	class	btThreadSupportInterface*		threadSupportCollision;
 	class	btThreadSupportInterface*		threadSupportSolver;
-	
-	
+		
 	btRigidBody * groundRigidBody;	
-	//btRigidBody **bodies, **bodies2, **bodies3;
 	vector<btRigidBody*> bodies;
 	
 	btRigidBody *collider;
-	btRigidBody *silhouette;
+	btRigidBody *silhouette1;
+	btRigidBody *silhouette2;
+	btRigidBody *silhouette3;
 	
 	btSoftBodyWorldInfo	m_softBodyWorldInfo;
 	
 	int millisForUpdate;
 	btClock clock;
 	
-	int					snapCounter;
-	char 				snapString[255];
-	ofImage 			img;
-	bool				makeSnaps;
+	btDefaultMotionState* silhouette1MotionState;
+	btConvexHullShape * silhouette1Shape;
+	btVector3* silhouette1Points;
+	int numSilhouette1Points;
+
+	btDefaultMotionState* silhouette2MotionState;
+	btConvexHullShape * silhouette2Shape;
+	btVector3* silhouette2Points;
+	int numSilhouette2Points;
 	
-	ofxLight light1; 
-	bool bSmoothLight;
+	btDefaultMotionState* silhouette3MotionState;
+	btConvexHullShape * silhouette3Shape;
+	btVector3* silhouette3Points;
+	int numSilhouette3Points;
 	
-	ofPoint cameraCorners[3][4];
-	ofPoint projectorCorners[3][4];
+	btDefaultMotionState* fallMotionState;
 	
-	Camera camera1;
-	ofPoint point;
-	
-	btVector3* silhouettePoints;
-	int numSilhouettePoints;
+	btVector3* btGravity;
 	
 	int cornerWarperIndex;
 	
 	bool debug;
+
+	ofxLight light1; 
+	bool bSmoothLight;
 	
+	int					snapCounter;
+	char 				snapString[255];
+	ofImage 			img;
+	bool				makeSnaps;
+	ofPoint point;
+
+	string	textStrings[3];
+
+	typedef int textStates;
+	enum {
+		TEXT_STATE_CLEAR = 0,
+		TEXT_STATE_UPDATE = 1,
+		TEXT_STATE_PHYSICS_ENABLED = 2,
+		TEXT_STATE_PHYSICS_DISABLED = 3,
+		TEXT_STATE_RESET = 4
+	};
 	
+	int		textState[3];
+	ofPoint textPosition[3];
+	float	textWidth[3];
+	float	textDepth[3];
+	float	textColorR[3];
+	float	textColorG[3];
+	float	textColorB[3];
+	float	textColorA[3];
+
 };
 
 #endif

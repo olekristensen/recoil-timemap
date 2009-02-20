@@ -139,7 +139,7 @@ public:
 	}
 	
 	void handleOsc(ofxOscMessage *m){		
-		//cout<<m->getAddress()<<" "<< m->getArgAsFloat(0)<<endl;
+		cout<<m->getAddress()<<" "<< m->getArgAsFloat(0)<<endl;
 		if ( strcmp( m->getAddress(), ("/sharedvariable/"+id).c_str() ) == 0 ){
 			if(type == SHARED_BOOL){
 				*valueBool = m->getArgAsInt32(0);
@@ -151,8 +151,8 @@ public:
 				*valueString = m->getArgAsString(0);
 				oldString = m->getArgAsString(0);
 			} else if(type == SHARED_FLOAT){
-				*valueFloat = m->getArgAsFloat(0);
-				oldFloat = m->getArgAsFloat(0);
+				*valueFloat = ((-0.001 < m->getArgAsFloat(0) && m->getArgAsFloat(0) < 0.001)?0.0:m->getArgAsFloat(0)); //avoiding errros when isadora sends -2.38419e-08 in stead of zero
+				oldFloat = ((-0.001 < m->getArgAsFloat(0) && m->getArgAsFloat(0) < 0.001)?0.0:m->getArgAsFloat(0));
 			}/*else if(type == SHARED_RGBA){
 				valueColor->r = m->getArgAsFloat(0);
 				valueColor->g = m->getArgAsFloat(1);
