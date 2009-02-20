@@ -15,16 +15,18 @@ public:
 	Word(string text, TextFontHolder * font, int depth, bool blockTogether = false){
 		if(!blockTogether){
 			for(int i=0; i<text.size(); i++){
-				letters.push_back(Letter(text.substr(i,1), font, depth));
+				letters.push_back(Letter(text.substr(i,1), font, depth,0, blockTogether));
 			}
 		} else {
-			letters.push_back(Letter(text, font, depth));
+			letters.push_back(Letter(text, font, depth,0, blockTogether));
 		}
 	}
 	
 	void drawText(){
 		for(int i=0;i< letters.size(); i++){
-			letters[i].drawText();
+			if(letters[i].getLetter() != "\n"){
+				letters[i].drawText();
+			}
 		}
 	}
 	

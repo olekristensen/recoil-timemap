@@ -13,13 +13,15 @@ public:
 	GLdouble matrix[16]; 
 	btRigidBody *bulletBodie;
 
-	Letter(string _letter, TextFontHolder* _font, int _depth, int _forcedWidth = 0){
-			forcedWidth = _forcedWidth;
+	Letter(string _letter, TextFontHolder* _font, int _depth, int _forcedWidth = 0, bool _blockTogether = false){
+		forcedWidth = _forcedWidth;
 		setFont(_font);
 		setLetter(_letter);		
 		depth = _depth;
+		blockTogether = _blockTogether;
 		setPosition(0,0,0);
 	}
+	
 	void setLetter(string _letter){
 		letter = _letter;
 	}
@@ -38,11 +40,11 @@ public:
 		
 		
 		glPushMatrix();		
-	//*	glTranslated(loc.x, loc.y, loc.z);		
+		glTranslated(loc.x, loc.y, loc.z);		
 		glMultMatrixd(matrix);		
 		glTranslated(-getWidth()/2.0,-getFont()->getCalculatedHeight()/2.0, 0);
 	
-		/** BOUNDING BOX BEGIN
+		//** BOUNDING BOX BEGIN
 		ofDisableAlphaBlending();	
 		glPushMatrix();
 		ofSetColor(40, 40, 40);
@@ -113,17 +115,20 @@ public:
 			glTranslated(loc.x, loc.y, loc.z);		
 			glMultMatrixd(matrix);		
 			glTranslated(-getWidth()/2.0,-getFont()->getCalculatedHeight()/2.0, 0);
-		ofSetColor(255,255,255, 255);
-		glPushMatrix();
-		glTranslated(3, (font->getCalculatedHeight())/2.0+6 ,  -depth/2.0);
-		glNormal3d(0.0,0.0,1.0);
-		font->renderString((string)letter);
+			ofSetColor(255,255,255, 255);
+			glPushMatrix();
+		glTranslated(3, (font->getCalculatedHeight())/2.0+6,  0.0);//-depth/2.0);
+				glNormal3d(0.0,0.0,1.0);
+				font->renderString((string)letter);
+			glPopMatrix();
 		glPopMatrix();
 	}
 	
 	float getWidth(){
 		if(forcedWidth != 0){
 			return forcedWidth;
+		} else if (blockTogether){
+			return font->getWidth(letter + "p");
 		}
 		else if(letter == "\n" || letter == " "){
 			return font->getCharSetWidth("p");
@@ -135,7 +140,7 @@ public:
 					c+= font->getCharSetWidth("p");
 				}
 			}*/
-			return font->getWidth(letter+"p");
+			return font->getCharSetWidth(letter)+1;
 		}
 	}
 	
@@ -173,6 +178,7 @@ private:
 	ofPoint loc;
 	float depth;
 	int forcedWidth;
+	bool blockTogether;
 
 	
 
