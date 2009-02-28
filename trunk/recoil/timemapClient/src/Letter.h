@@ -8,25 +8,44 @@
 #include "textObject.h"
 #include "TextFontHolder.h"
 
-class Letter : public Particle, TextObject  {
+class Letter : public TextObject  {
 public:	
 	GLdouble matrix[16]; 
 	btRigidBody *bulletBodie;
 
-	Letter(string _letter, TextFontHolder* _font, int _depth, int _forcedWidth = 0, bool _blockTogether = false){
+	Letter(wstring _letter, TextFontHolder* _font, float _depth, int _forcedWidth = 0, bool _blockTogether = false){
 		forcedWidth = _forcedWidth;
 		setFont(_font);
 		setLetter(_letter);		
 		depth = _depth;
 		blockTogether = _blockTogether;
+		useBullet = false;
 		setPosition(0,0,0);
+	}
+
+	Letter(string _letter, TextFontHolder* _font, float _depth, int _forcedWidth = 0, bool _blockTogether = false){
+		wstring utf32result;
+		utf8::utf8to32(_letter.begin(), _letter.end(), back_inserter(utf32result));
+		Letter(utf32result, _font, _depth, _forcedWidth, _blockTogether);
+	}
+	
+	void setLetter(wstring _letter){
+		letter = _letter;
 	}
 	
 	void setLetter(string _letter){
-		letter = _letter;
+		wstring utf32result;
+		utf8::utf8to32(_letter.begin(), _letter.end(), back_inserter(utf32result));
+		setLetter(utf32result);
 	}
-
+	
 	string getLetter(){
+		string utf8result;
+		utf8::utf32to8(letter.begin(), letter.end(), back_inserter(utf8result));
+		return utf8result;
+	}
+	
+	wstring getWLetter(){
 		return letter;
 	}
 	
@@ -40,8 +59,9 @@ public:
 		
 		
 		glPushMatrix();		
-		glTranslated(loc.x, loc.y, loc.z);		
-		glMultMatrixd(matrix);		
+		glTranslated(loc.x, loc.y, loc.z);
+		if(useBullet)
+			glMultMatrixd(matrix);		
 		glTranslated(-getWidth()/2.0,-getFont()->getCalculatedHeight()/2.0, 0);
 	
 		//** BOUNDING BOX BEGIN
@@ -111,15 +131,16 @@ public:
 	
 	
 	void drawText(){
-		glPushMatrix();		
-			glTranslated(loc.x, loc.y, loc.z);		
-			glMultMatrixd(matrix);		
+		glPushMatrix();
+			glTranslated(loc.x, loc.y, loc.z);
+			if(useBullet)
+				glMultMatrixd(matrix);		
 			glTranslated(-getWidth()/2.0,-getFont()->getCalculatedHeight()/2.0, 0);
-			ofSetColor(255,255,255, 255);
+			//ofSetColor(255,255,255, 255);
 			glPushMatrix();
-		glTranslated(3, (font->getCalculatedHeight())/2.0+6,  0.0);//-depth/2.0);
+				glTranslated(3, (font->getCalculatedHeight())/2.0+6,  0.0);//-depth/2.0);
 				glNormal3d(0.0,0.0,1.0);
-				font->renderString((string)letter);
+				font->renderString((wstring)letter);
 			glPopMatrix();
 		glPopMatrix();
 	}
@@ -128,10 +149,10 @@ public:
 		if(forcedWidth != 0){
 			return forcedWidth;
 		} else if (blockTogether){
-			return font->getWidth(letter + "p");
+			return font->getWidth(letter + L" ");
 		}
-		else if(letter == "\n" || letter == " "){
-			return font->getCharSetWidth("p");
+		else if(letter == L"\n" || letter == L" "){
+			return font->getCharSetWidth(L" ");
 		} else {
 			/*int c = 0;
 			for(int i=0;i<letter.size();i++){
@@ -140,15 +161,15 @@ public:
 					c+= font->getCharSetWidth("p");
 				}
 			}*/
-			return font->getCharSetWidth(letter)+1;
+			return font->getCharSetWidth((wstring)letter);
 		}
 	}
 	
 	float getHeight(){
-		if(letter == "\n" || letter == " "){
-			return font->getHeight((string)"p");
+		if(letter == L"\n" || letter == L" "){
+			return font->getHeight((wstring)L"p");
 		} else {
-			return font->getHeight((string)letter);
+			return font->getHeight((wstring)letter);
 		}
 	}
 	
@@ -156,31 +177,45 @@ public:
 		loc.x = x;
 		loc.y = y;
 		loc.z = z;
+
+		orgLoc.x = x;
+		orgLoc.y = y;
+		orgLoc.z = z;
 	}
 	
-	void translate(float x, float y, float z){
-		loc.x += x;
-		loc.y += y;
-		loc.z += z;
+	ofPoint getPosition(){
+		return getLoc();
 	}
 	
 	ofPoint getLoc(){
 		return loc;
 	}
 	
+	void translate(float x, float y, float z){
+		loc.x = orgLoc.x + x;
+		loc.y = orgLoc.y + y;
+		loc.z = orgLoc.z + z;
+	}
+	
+	ofPoint getTranslate(){
+		return ofPoint(loc.x - orgLoc.x, loc.y - orgLoc.y, loc.z - orgLoc.z);
+	}
+	
 	float getDepth(){
 		return depth;
 	}
+
+	bool useBullet;
+
 private:
 	
 	TextFontHolder* font;
-	string letter;
+	wstring letter;
+	ofPoint orgLoc;
 	ofPoint loc;
 	float depth;
 	int forcedWidth;
 	bool blockTogether;
-
-	
 
 };
 

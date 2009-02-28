@@ -18,16 +18,18 @@ public:
 	
 	//---------------------------
 	coordWarping();
+	~coordWarping();
 
 	void calculateMatrix(ofxPoint2f src[4], ofxPoint2f dst[4]);
 	
 	ofxPoint2f transform(float xIn, float yIn);
 	
+	CvMat *translate;
+
 protected:
 	
 	CvPoint2D32f cvsrc[4];
 	CvPoint2D32f cvdst[4];
-	CvMat *translate;
 	
 };
 

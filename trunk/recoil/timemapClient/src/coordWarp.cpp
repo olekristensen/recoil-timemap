@@ -1,8 +1,12 @@
-#include "coordWarp.h"
+﻿#include "coordWarp.h"
 
 //---------------------------
 coordWarping::coordWarping(){
 	translate = cvCreateMat(3,3,CV_32FC1);
+}
+
+coordWarping::~coordWarping(){
+	delete translate;
 }
 
 //---------------------------
@@ -38,4 +42,5 @@ ofxPoint2f coordWarping::transform(float xIn, float yIn){
 	out.y = ((d*xIn + e*yIn + f) / (i*xIn + j*yIn + 1));
 
 	return out;
+	delete data;
 }		

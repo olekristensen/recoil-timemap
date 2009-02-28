@@ -81,7 +81,7 @@ public:
 	void update(){
 		CvMat* sRect = cvGetSubRect(colorImg->getCvImage(),c, cvRect(pos.x, pos.y, size.x, size.y) );
 		cvCopy(sRect, crop.getCvImage());
-
+		
 		grayImage = crop;
 
 		 if (bLearnBakground == true){
@@ -102,6 +102,7 @@ public:
 		} else {
 			simplify->hasBlob = false;
 		}
+		//delete sRect;
 	}
 	
 	
@@ -110,7 +111,7 @@ public:
 		glPushMatrix();
 		glDisable(GL_DEPTH_TEST);
 		ofSetColor(255, 255, 255);
-		grayImage.draw(ofGetWidth()/1.95,0,720,576);
+		grayImage.draw(0,0,w,h);
 		/**
 		 ofLine(dst[0].x*w, dst[0].y*h, dst[1].x*w, dst[1].y*h);
 		 ofLine(dst[2].x*w, dst[2].y*h, dst[1].x*w, dst[1].y*h);

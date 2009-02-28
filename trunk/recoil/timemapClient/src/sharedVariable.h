@@ -138,19 +138,41 @@ public:
 		
 	}
 	
-	void handleOsc(ofxOscMessage *m){		
-		cout<<m->getAddress()<<" "<< m->getArgAsFloat(0)<<endl;
+	void handleOsc(ofxOscMessage *m){
+		//cout <<  m->getAddress() << "   TYPE: " << m->getArgType(0) << " " << m->getArgTypeName(0) << " " << OFXOSC_TYPE_FLOAT << endl;
 		if ( strcmp( m->getAddress(), ("/sharedvariable/"+id).c_str() ) == 0 ){
 			if(type == SHARED_BOOL){
-				*valueBool = m->getArgAsInt32(0);
-				oldBool = m->getArgAsInt32(0);
+				if(m->getArgType(0) == OFXOSC_TYPE_FLOAT){
+					//avioding crashes when isadora sends a boolean as a float
+					cout <<  m->getAddress() << " = " << ((0.5 < m->getArgAsFloat(0))?true:false) << endl;
+					*valueBool = ((0.5 < m->getArgAsFloat(0))?true:false);
+					oldBool = ((0.5 < m->getArgAsFloat(0))?true:false);
+				} else {
+					// cout <<  m->getAddress() << " = " <<  m->getArgAsInt32(0) << endl;
+					*valueBool = m->getArgAsInt32(0);
+					oldBool = m->getArgAsInt32(0);
+				}
 			} else if(type == SHARED_INT){
-				*valueInt = m->getArgAsInt32(0);
-				oldInt = m->getArgAsInt32(0);
+				if(m->getArgType(0) == OFXOSC_TYPE_FLOAT){
+					//avioding crashes when isadora sends an int as a float
+					 cout <<  m->getAddress() << " = " << lrintf(m->getArgAsFloat(0)) << endl;
+					*valueInt = lrintf(m->getArgAsFloat(0));
+					oldInt = lrintf(m->getArgAsFloat(0));
+				} else {
+					 cout <<  m->getAddress() << " = " <<  m->getArgAsInt32(0) << endl;
+					*valueInt = m->getArgAsInt32(0);
+					oldInt = m->getArgAsInt32(0);
+				}
 			} else if(type == SHARED_STRING){
-				*valueString = m->getArgAsString(0);
-				oldString = m->getArgAsString(0);
+				//cout <<  m->getAddress() << " = " << m->getArgAsString(0) << endl;
+				string str = m->getArgAsString(0);
+				// hack for max msp empty strings
+				if(str == "bang")
+					str = "";
+				*valueString = str;
+				oldString = str;
 			} else if(type == SHARED_FLOAT){
+				cout <<  m->getAddress() << " = " <<  m->getArgAsFloat(0) << endl;
 				*valueFloat = ((-0.001 < m->getArgAsFloat(0) && m->getArgAsFloat(0) < 0.001)?0.0:m->getArgAsFloat(0)); //avoiding errros when isadora sends -2.38419e-08 in stead of zero
 				oldFloat = ((-0.001 < m->getArgAsFloat(0) && m->getArgAsFloat(0) < 0.001)?0.0:m->getArgAsFloat(0));
 			}/*else if(type == SHARED_RGBA){
