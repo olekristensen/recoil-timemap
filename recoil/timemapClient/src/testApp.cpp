@@ -74,9 +74,16 @@ void testApp::setup(){
 	
 	btGravity = new btVector3(0,10,0);
 
-	sharedVariables.push_back(SharedVariable(&btGravity->m_floats[0],	"gravityX"));
-	sharedVariables.push_back(SharedVariable(&btGravity->m_floats[1],	"gravityY"));
-	sharedVariables.push_back(SharedVariable(&btGravity->m_floats[2],	"gravityZ"));
+	worldWrapX = false;
+	worldWrapY = false;
+	worldGround = true;
+	
+	sharedVariables.push_back(SharedVariable(&btGravity->m_floats[0],	"worldGravityX"));
+	sharedVariables.push_back(SharedVariable(&btGravity->m_floats[1],	"worldGravityY"));
+	sharedVariables.push_back(SharedVariable(&btGravity->m_floats[2],	"worldGravityZ"));
+	sharedVariables.push_back(SharedVariable(&worldWrapX,				"worldWrapX"));
+	sharedVariables.push_back(SharedVariable(&worldWrapY,				"worldWrapY"));
+	sharedVariables.push_back(SharedVariable(&worldGround,				"worldGround"));
 	
 	bulletSetup();
 
@@ -130,20 +137,25 @@ void testApp::setup(){
 	vidTracker.initGrabber(720,576);
 	
 	colorImg.allocate(720,576);
-	camera1.setup(&vidTracker, &trackerTexture, &colorImg,  0,0,vidTracker.width/2, vidTracker.height/2);
-	camera2.setup(&vidTracker, &trackerTexture, &colorImg,  vidTracker.width/2,0,vidTracker.width/2, vidTracker.height/2);
-	camera3.setup(&vidTracker, &trackerTexture, &colorImg,  0,vidTracker.height/2,vidTracker.width/2, vidTracker.height/2);
+	camera[0].setup(&vidTracker, &trackerTexture, &colorImg,  0,0,vidTracker.width/2, vidTracker.height/2);
+	camera[1].setup(&vidTracker, &trackerTexture, &colorImg,  vidTracker.width/2,0,vidTracker.width/2, vidTracker.height/2);
+	camera[2].setup(&vidTracker, &trackerTexture, &colorImg,  0,vidTracker.height/2,vidTracker.width/2, vidTracker.height/2);
 	
 	makeSnaps = false;
 	memset(snapString, 0, 255);		// clear the string by setting all chars to 0
 	snapCounter = 0;
 
+	statusFont = TextFontHolder("ApexNew-Medium.otf",10);
+	statusFontBold = TextFontHolder("ApexNew-Bold.otf",10);
+	
 	debug = false;
+	debugOffset = 0.0;
 	status = false;
 	statusOffset = 0.0;
 	
-	statusFont = TextFontHolder("ApexSerif-Book.otf",10);
-	
+	sharedVariables.push_back(SharedVariable(&status,	"status"));
+	sharedVariables.push_back(SharedVariable(&debug,	"debug"));
+
 	testCard1.loadImage("768x1024.001.png");
 	testCard2.loadImage("768x1024.002.png");
 	testCard3.loadImage("768x1024.003.png");
@@ -293,7 +305,7 @@ void testApp::bulletSetup(){
 	dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,broadphase,solver,collisionConfiguration);
 
 	dynamicsWorld->getSolverInfo().m_numIterations = 6;
-	dynamicsWorld->getSolverInfo().m_solverMode = SOLVER_SIMD+SOLVER_USE_WARMSTARTING;
+	dynamicsWorld->getSolverInfo().m_solverMode = SOLVER_USE_WARMSTARTING+SOLVER_CUDA;
 	
 	dynamicsWorld->getDispatchInfo().m_enableSPU = true;
 	//dynamicsWorld->setGravity(btVector3(0,10,0));
@@ -304,7 +316,6 @@ void testApp::bulletSetup(){
 	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0.0,((ofGetWidth()/3.0)+100)/100.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
 	groundRigidBody = new btRigidBody(groundRigidBodyCI);
-	dynamicsWorld->addRigidBody(groundRigidBody);
 		
 	//Collider
 	btCollisionShape* fallShape = new btBoxShape(btVector3(0.1,0.1,6000));
@@ -352,55 +363,71 @@ void testApp::update(){
 	ofxPoint2f p;
 	if (vidTracker.isFrameNew()){		
 		colorImg.setFromPixels(vidTracker.getPixels(), 720,576);
-		camera1.update();			
-		camera2.update();			
-		camera3.update();			
+		for(int i = 0; i < 3; i++) {
+			camera[i].update();			
+		}
 	}
 		
 	//Gravity
 	
 	dynamicsWorld->setGravity(*btGravity);
 	
+	//Ground 	
+	
+	if(worldGround) {
+		if(!worldGroundState) {
+			dynamicsWorld->addRigidBody(groundRigidBody);
+			worldGroundState = true;
+		}
+	} else {
+		if(worldGroundState){
+			dynamicsWorld->removeRigidBody(groundRigidBody);
+			worldGroundState = false;
+		}
+	}
+	
+	//Walls
+	
+	
 	// Silhouette 1
 	
-	silhouette1Shape = btConvexHullShape();
-	if(camera1.contourFinder.nBlobs > 0){
-		for(int i=0;i<camera1.simplify->numPoints;i++){
-			silhouette1Shape.addPoint(btVector3(camera1.simplify->points[i].x*ofGetHeight()/100.0, camera1.simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
-			silhouette1Shape.addPoint(btVector3(camera1.simplify->points[i].x*ofGetHeight()/100.0, camera1.simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
-			//cout<<camera1.simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera1.simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
+	btConvexHullShape * silhouette1Shape = new btConvexHullShape();
+	if(camera[0].contourFinder.nBlobs > 0){
+		for(int i=0;i<camera[0].simplify->numPoints;i++){
+			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
+			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
+			//cout<<camera[0].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
 		}
 	}
 	btVector3 silhouette1Pos = btVector3(0,0,0);
 	silhouette1MotionState = btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),silhouette1Pos));
 	btScalar silhouette1Mass = 0;
 	btVector3 silhouette1FallInertia(0,0,0);
-	silhouette1Shape.calculateLocalInertia(silhouette1Mass,silhouette1FallInertia);
-	btRigidBody::btRigidBodyConstructionInfo silhouette1RigidBodyCI(silhouette1Mass,&silhouette1MotionState,&silhouette1Shape,silhouette1FallInertia);
+	silhouette1Shape->calculateLocalInertia(silhouette1Mass,silhouette1FallInertia);
+	btRigidBody::btRigidBodyConstructionInfo silhouette1RigidBodyCI(silhouette1Mass,&silhouette1MotionState,silhouette1Shape,silhouette1FallInertia);
 	btRigidBody* silhouette1 = new btRigidBody(silhouette1RigidBodyCI);
 	//silhouette->setGravity(btVector3(0.,0.,0.));
 	//silhouette->setDamping(0.99,0.9);
 	silhouette1->setCollisionFlags( silhouette1->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	silhouette1->setActivationState(DISABLE_DEACTIVATION);
-	
 	dynamicsWorld->addRigidBody(silhouette1);
 	
 	// Silhouette 2
 	
-	silhouette2Shape = btConvexHullShape();
-	if(camera2.contourFinder.nBlobs > 0){
-		for(int i=0;i<camera1.simplify->numPoints;i++){
-			silhouette2Shape.addPoint(btVector3(camera2.simplify->points[i].x*ofGetHeight()/100.0, camera2.simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
-			silhouette2Shape.addPoint(btVector3(camera2.simplify->points[i].x*ofGetHeight()/100.0, camera2.simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
-			//cout<<camera1.simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera1.simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
+	btConvexHullShape * silhouette2Shape = new btConvexHullShape();
+	if(camera[1].contourFinder.nBlobs > 0){
+		for(int i=0;i<camera[1].simplify->numPoints;i++){
+			silhouette2Shape->addPoint(btVector3(camera[1].simplify->points[i].x*ofGetHeight()/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
+			silhouette2Shape->addPoint(btVector3(camera[1].simplify->points[i].x*ofGetHeight()/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
+			//cout<<camera[1].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
 		}
 	}
 	btVector3 silhouette2Pos = btVector3(0,0,0);
 	silhouette2MotionState = btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),silhouette2Pos));
 	btScalar silhouette2Mass = 0;
 	btVector3 silhouette2FallInertia(0,0,0);
-	silhouette2Shape.calculateLocalInertia(silhouette2Mass,silhouette2FallInertia);
-	btRigidBody::btRigidBodyConstructionInfo silhouette2RigidBodyCI(silhouette2Mass,&silhouette2MotionState,&silhouette2Shape,silhouette2FallInertia);
+	silhouette2Shape->calculateLocalInertia(silhouette2Mass,silhouette2FallInertia);
+	btRigidBody::btRigidBodyConstructionInfo silhouette2RigidBodyCI(silhouette2Mass,&silhouette2MotionState,silhouette2Shape,silhouette2FallInertia);
 	btRigidBody* silhouette2 = new btRigidBody(silhouette2RigidBodyCI);
 	//silhouette->setGravity(btVector3(0.,0.,0.));
 	//silhouette->setDamping(0.99,0.9);
@@ -412,20 +439,20 @@ void testApp::update(){
 	
 	// Silhouette 3
 	
-	silhouette3Shape = btConvexHullShape();
-	if(camera3.contourFinder.nBlobs > 0){
-		for(int i=0;i<camera1.simplify->numPoints;i++){
-			silhouette3Shape.addPoint(btVector3(camera3.simplify->points[i].x*ofGetHeight()/100.0, camera3.simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
-			silhouette3Shape.addPoint(btVector3(camera3.simplify->points[i].x*ofGetHeight()/100.0, camera3.simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
-			//cout<<camera1.simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera1.simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
+	btConvexHullShape * silhouette3Shape = new btConvexHullShape();
+	if(camera[2].contourFinder.nBlobs > 0){
+		for(int i=0;i<camera[2].simplify->numPoints;i++){
+			silhouette3Shape->addPoint(btVector3(camera[2].simplify->points[i].x*ofGetHeight()/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
+			silhouette3Shape->addPoint(btVector3(camera[2].simplify->points[i].x*ofGetHeight()/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
+			//cout<<camera[2].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
 		}
 	}
 	btVector3 silhouette3Pos = btVector3(0,0,0);
 	silhouette3MotionState = btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),silhouette3Pos));
 	btScalar silhouette3Mass = 0;
 	btVector3 silhouette3FallInertia(0,0,0);
-	silhouette3Shape.calculateLocalInertia(silhouette3Mass,silhouette3FallInertia);
-	btRigidBody::btRigidBodyConstructionInfo silhouette3RigidBodyCI(silhouette3Mass,&silhouette3MotionState,&silhouette3Shape,silhouette3FallInertia);
+	silhouette3Shape->calculateLocalInertia(silhouette3Mass,silhouette3FallInertia);
+	btRigidBody::btRigidBodyConstructionInfo silhouette3RigidBodyCI(silhouette3Mass,&silhouette3MotionState,silhouette3Shape,silhouette3FallInertia);
 	btRigidBody* silhouette3 = new btRigidBody(silhouette3RigidBodyCI);
 	//silhouette->setGravity(btVector3(0.,0.,0.));
 	//silhouette->setDamping(0.99,0.9);
@@ -456,19 +483,19 @@ void testApp::update(){
 		d[i].x = (float)cameraCorners[0][i].x;
 		d[i].y = (float)cameraCorners[0][i].y;
 	}
-	camera1.updateWarp(d);
+	camera[0].updateWarp(d);
 	
 	for(int i=0;i<4;i++){
 		d[i].x = (float)cameraCorners[1][i].x;
 		d[i].y = (float)cameraCorners[1][i].y;
 	}
-	camera2.updateWarp(d);
+	camera[1].updateWarp(d);
 
 	for(int i=0;i<4;i++){
 		d[i].x = (float)cameraCorners[2][i].x;
 		d[i].y = (float)cameraCorners[2][i].y;
 	}
-	camera3.updateWarp(d);
+	camera[2].updateWarp(d);
 	
 	 
 #ifdef FIXED_STEP
@@ -508,7 +535,7 @@ void testApp::update(){
 	textUpdate();
 	
 	// Silhouette
-
+	
 	dynamicsWorld->removeRigidBody(silhouette1);
 	dynamicsWorld->removeRigidBody(silhouette2);
 	dynamicsWorld->removeRigidBody(silhouette3);
@@ -516,7 +543,27 @@ void testApp::update(){
 	delete silhouette1;
 	delete silhouette2;
 	delete silhouette3;
+	
 
+	/**
+	for (int i = 0; i < silhouette1Shape->getNumPoints(); i++ ){
+		btVector3* aPoint = silhouette1Shape->getUnscaledPoints()+i;
+		delete aPoint;
+	}
+	for (int i = 0; i < silhouette2Shape->getNumPoints(); i++ ){
+		btVector3* aPoint = silhouette2Shape->getUnscaledPoints()+i;
+		delete aPoint;
+	}
+	for (int i = 0; i < silhouette3Shape->getNumPoints(); i++ ){
+		btVector3* aPoint = silhouette3Shape->getUnscaledPoints()+i;
+		delete aPoint;
+	}
+	 **/
+	
+	delete silhouette1Shape;
+	delete silhouette2Shape;
+	delete silhouette3Shape;
+	
 }
 
 
@@ -978,7 +1025,7 @@ void testApp::drawViewport(){
 		for(int h=0;h<ofGetWidth()/3.0;h+=10){
 			ofLine(0, h, ofGetHeight()*3.0, h);
 		}
-		glTranslatef(0.0, 0.0, 300.0);
+		glTranslatef(0.0, 0.0, 400.0);
 	}
 	
 	//Draw Background
@@ -1028,14 +1075,15 @@ void testApp::drawViewport(){
 	//trackerTexture.draw(0,0);	
 	
 	if(debugOffset > 0.0){
+		glDisable(GL_DEPTH_TEST);
 		ofEnableAlphaBlending();
 		glPushMatrix();
-		glTranslatef(0,(1.0-statusOffset)*-90.0,10);
-		ofSetColor(4, 4, 8, 240 * debugOffset);
-		ofRect(ofGetHeight(),-20,ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+60);
+		glTranslatef(0,0,10);
+		ofSetColor(8+(backgroundColorR[1]*64.0), 10+(backgroundColorG[1]*64.0), 16+(backgroundColorB[1]*64.0), 240 * debugOffset);
+		ofRect(ofGetHeight(),0,ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+(statusOffset*90.0));
 		for(int i=0;i<roundf((ofGetWidth()/6.0)/3.0);i+=3){
-			ofSetColor(4, 4, 8, debugOffset*240*cos(2.0*(i/((ofGetWidth()/6.0)/3.0))));
-			ofRect(ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+i+40, ofGetHeight(), 3);
+			ofSetColor(8+(backgroundColorR[1]*64.0), 10+(backgroundColorG[1]*64.0), 16+(backgroundColorB[1]*64.0),  debugOffset*240*cos(2.0*(i/((ofGetWidth()/6.0)/3.0))));
+			ofRect(ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+i+(statusOffset*90.0), ofGetHeight(), 3);
 		}
 		glPopMatrix();
 	}
@@ -1046,7 +1094,7 @@ void testApp::drawViewport(){
 		glPushMatrix();
 		glTranslatef(0,0,10);
 		for(int i=0 ; i<100 ; i+=2){
-			ofSetColor(12*(i/100.0), 12*(i/100.0), (12*(i/100.0))+4, statusOffset*((100.0-i)+64.0));
+			ofSetColor(12*(i/100.0), 12*(i/100.0), (12*(i/100.0))+4, statusOffset*((50.0-(i/2.0))+64.0));
 			ofRect(0,i, ofGetHeight()*3.0,2.0);
 		}
 		
@@ -1054,46 +1102,116 @@ void testApp::drawViewport(){
 		
 		ofSetColor(255, 255, 255, 255*statusOffset);
 
+		float textOffset = ofGetHeight()-20;
+
+		if(showCams){
+
+		textOffset = ofGetHeight()-((20+(((80*(4/3.0))+10)*3)));
+
 		glPushMatrix();
 		glTranslatef(10, 10, 1.0);
-		glTranslatef(ofGetHeight()-(190*(4/3.0)), 0, 0);
-		camera1.grayDiff.draw(0,0,(80*(4/3.0)),80);
-		glTranslatef(90*(4/3.0), 0, 0);
-		camera1.grayImage.draw(0,0,(80*(4/3.0)),80);
+		glTranslatef(ofGetHeight()-(10+(((80*(4/3.0))+10)*3)), 0, 0);
+		camera[0].grayDiff.draw(0,0,(80*(4/3.0)),80);
+		glTranslatef(10+(80*(4/3.0)), 0, 0);
+		camera[0].grayImage.draw(0,0,(80*(4/3.0)),80);
+		glTranslatef(10+(80*(4/3.0)), 0, 0);
+		camera[0].colorImg->draw(0,0,(80*(4/3.0)),80);
 		glPopMatrix();
 		
 		glPushMatrix();
 		glTranslatef(10, 10, 1.0);
-		glTranslatef((2*ofGetHeight())-(190*(4/3.0)), 0, 0);
-		camera2.grayDiff.draw(0,0,(80*(4/3.0)),80);
-		glTranslatef(90*(4/3.0), 0, 0);
-		camera2.grayImage.draw(0,0,(80*(4/3.0)),80);
+		glTranslatef((2*ofGetHeight())-(10+(((80*(4/3.0))+10)*3)), 0, 0);
+		camera[1].grayDiff.draw(0,0,(80*(4/3.0)),80);
+		glTranslatef(10+(80*(4/3.0)), 0, 0);
+		camera[1].grayImage.draw(0,0,(80*(4/3.0)),80);
+		glTranslatef(10+(80*(4/3.0)), 0, 0);
+		camera[1].colorImg->draw(0,0,(80*(4/3.0)),80);
 		glPopMatrix();
 		
 		glPushMatrix();
 		glTranslatef(10, 10, 1.0);
-		glTranslatef((3*ofGetHeight())-(190*(4/3.0)), 0, 0);
-		camera3.grayDiff.draw(0,0,(80*(4/3.0)),80);
-		glTranslatef(90*(4/3.0), 0, 0);
-		camera3.grayImage.draw(0,0,(80*(4/3.0)),80);
+		glTranslatef((3*ofGetHeight())-(10+(((80*(4/3.0))+10)*3)), 0, 0);
+		camera[2].grayDiff.draw(0,0,(80*(4/3.0)),80);
+		glTranslatef(10+(80*(4/3.0)), 0, 0);
+		camera[2].grayImage.draw(0,0,(80*(4/3.0)),80);
+		glTranslatef(10+(80*(4/3.0)), 0, 0);
+		camera[2].colorImg->draw(0,0,(80*(4/3.0)),80);
 		glPopMatrix();
 		
-		
+		}
+			
+		for(int i = 0 ; i < 3 ; i++) {
+			glPushMatrix();
+			glTranslatef((i*ofGetHeight())+10, 20, 1.0);
+			glPushMatrix();
+			ofSetColor(255, 255, 255, 255*statusOffset);
+			statusFontBold.drastring("FPS: " + ofToString(ofGetFrameRate(),2),0,0);
+			glTranslatef(0, 26, 0);
+			ofSetColor(255, 255, 255, 63*statusOffset);
+			statusFont.drastring(bulletStatus[3],0,0);
+			glTranslatef(0, 13, 0);
+			ofSetColor(255, 255, 255, 127*statusOffset);
+			statusFont.drastring(bulletStatus[2],0,0);
+			glTranslatef(0, 13, 0);
+			ofSetColor(255, 255, 255, 191*statusOffset);
+			statusFont.drastring(bulletStatus[1],0,0);
+			glTranslatef(0, 13, 0);
+			ofSetColor(255, 255, 255, 255*statusOffset);
+			statusFontBold.drastring(bulletStatus[0],0,0);
+			ofSetColor(255, 255, 255, 255*statusOffset);
+			glPopMatrix();
+			glPushMatrix();
+			glTranslatef(textOffset-(80*(4/3.0)), 0, 0);
+			statusFontBold.drastring("Screen # "+ofToString(i+1),0,0);
+			glTranslatef(0, 40, 0);
+			statusFont.drastring("Bullet Bodies:",0,0);
+			glTranslatef(0, 13, 0);
+			statusFont.drastring("Text Lines:",0,0);
+			glTranslatef(0, 13, 0);
+			statusFont.drastring("Blobs:",0,0);
+			glPopMatrix();
+			ofSetColor(255, 255, 255, 255*statusOffset);
+			glPushMatrix();
+			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(texts[i].getNumberBodies())), 40, 0);
+			statusFontBold.drastring(ofToString(texts[i].getNumberBodies()),0,0);
+			glPopMatrix();
+			glPushMatrix();
+			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(texts[i].getNumberLines())), 53, 0);
+			statusFontBold.drastring(ofToString(texts[i].getNumberLines()),0,0);
+			glPopMatrix();
+			glPushMatrix();
+			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(camera[i].contourFinder.nBlobs)), 66, 0);
+			statusFontBold.drastring(ofToString(camera[i].contourFinder.nBlobs ),0,0);
+			glPopMatrix();
+		glPopMatrix();
+		}
+	glPopMatrix();
+	}
+
+	//Cameras
+	
+	if(moveCameraCorners){
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE);
 		glPushMatrix();
-		ofSetColor(255, 255, 255, 255*statusOffset);
-		glTranslatef(10, 20, 1.0);
-		statusFont.drastring("FPS: " + ofToString(ofGetFrameRate(),2),0,0);
-		glTranslatef(0, 20, 0);
-		statusFont.drastring(bulletStatus[3],0,0);
-		glTranslatef(0, 13, 0);
-		statusFont.drastring(bulletStatus[2],0,0);
-		glTranslatef(0, 13, 0);
-		statusFont.drastring(bulletStatus[1],0,0);
-		glTranslatef(0, 13, 0);
-		statusFont.drastring(bulletStatus[0],0,0);
+		glTranslatef(0.0, 0.0, 2.0);
+		ofSetColor(27, 27, 15);
+		glTranslatef(0.0, (ofGetWidth()/3.0)-(ofGetHeight()*(camera[0].grayImage.height/(float)camera[0].grayImage.width)), 0.0);
+		ofRect(0,0,ofGetHeight(),ofGetHeight()*(camera[0].grayImage.height/(float)camera[0].grayImage.width));
+		glTranslatef(ofGetHeight(), 0.0, 0.0);
+		ofRect(0,0,ofGetHeight(),ofGetHeight()*(camera[1].grayImage.height/(float)camera[0].grayImage.width));
+		glTranslatef(ofGetHeight(), 0.0, 0.0);
+		ofRect(0,0,ofGetHeight(),ofGetHeight()*(camera[2].grayImage.height/(float)camera[0].grayImage.width));
 		glPopMatrix();
-		
-		
+		glPushMatrix();
+		glTranslatef(0.0, 0.0, 4.0);
+		ofSetColor(127,127,127);
+		glTranslatef(0.0, (ofGetWidth()/3.0)-(ofGetHeight()*(camera[0].grayImage.height/(float)camera[0].grayImage.width)), 0.0);
+		camera[0].grayImage.draw(0,0,ofGetHeight(),ofGetHeight()*(camera[0].grayImage.height/(float)camera[0].grayImage.width));
+		glTranslatef(ofGetHeight(), 0.0, 0.0);
+		camera[1].grayImage.draw(0,0,ofGetHeight(),ofGetHeight()*(camera[1].grayImage.height/(float)camera[1].grayImage.width));
+		glTranslatef(ofGetHeight(), 0.0, 0.0);
+		camera[2].grayImage.draw(0,0,ofGetHeight(),ofGetHeight()*(camera[2].grayImage.height/(float)camera[2].grayImage.width));
 		glPopMatrix();
 	}
 	
@@ -1112,28 +1230,31 @@ void testApp::keyPressed  (int key){
 	
 	switch (key){
 		case 'a':
-			camera1.simplify->damp = 0;
+			camera[0].simplify->damp = 0;
 			break;
 		case 'z':
-			camera1.simplify->damp = 0.09;
+			camera[0].simplify->damp = 0.09;
 			break;
 		case 'b':
-			camera1.bLearnBakground = true;
+			camera[0].bLearnBakground = true;
 			break;
 		case '+':
-			camera1.threshold ++;
-			if (camera1.threshold > 255) camera1.threshold = 255;
-			cout<<camera1.threshold<<endl;
+			camera[0].threshold ++;
+			if (camera[0].threshold > 255) camera[0].threshold = 255;
+			cout<<camera[0].threshold<<endl;
 			break;
 		case '-':
-			camera1.threshold --;
-			if (camera1.threshold < 0) camera1.threshold = 0;
-			cout<<camera1.threshold<<endl;
+			camera[0].threshold --;
+			if (camera[0].threshold < 0) camera[0].threshold = 0;
+			cout<<camera[0].threshold<<endl;
 			break;
 		case 'v':
 			ofShowCursor();
 			vidTracker.videoSettings();
 			ofHideCursor();
+			break;
+		case 'c':
+			showCams = !showCams;
 			break;
 		case 'd':
 			debug = !debug;
