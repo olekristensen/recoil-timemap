@@ -144,7 +144,7 @@ public:
 			if(type == SHARED_BOOL){
 				if(m->getArgType(0) == OFXOSC_TYPE_FLOAT){
 					//avioding crashes when isadora sends a boolean as a float
-					cout <<  m->getAddress() << " = " << ((0.5 < m->getArgAsFloat(0))?true:false) << endl;
+					// cout <<  m->getAddress() << " = " << ((0.5 < m->getArgAsFloat(0))?true:false) << endl;
 					*valueBool = ((0.5 < m->getArgAsFloat(0))?true:false);
 					oldBool = ((0.5 < m->getArgAsFloat(0))?true:false);
 				} else {
@@ -155,11 +155,11 @@ public:
 			} else if(type == SHARED_INT){
 				if(m->getArgType(0) == OFXOSC_TYPE_FLOAT){
 					//avioding crashes when isadora sends an int as a float
-					 cout <<  m->getAddress() << " = " << lrintf(m->getArgAsFloat(0)) << endl;
+					// cout <<  m->getAddress() << " = " << lrintf(m->getArgAsFloat(0)) << endl;
 					*valueInt = lrintf(m->getArgAsFloat(0));
 					oldInt = lrintf(m->getArgAsFloat(0));
 				} else {
-					 cout <<  m->getAddress() << " = " <<  m->getArgAsInt32(0) << endl;
+					// cout <<  m->getAddress() << " = " <<  m->getArgAsInt32(0) << endl;
 					*valueInt = m->getArgAsInt32(0);
 					oldInt = m->getArgAsInt32(0);
 				}
@@ -172,7 +172,7 @@ public:
 				*valueString = str;
 				oldString = str;
 			} else if(type == SHARED_FLOAT){
-				cout <<  m->getAddress() << " = " <<  m->getArgAsFloat(0) << endl;
+				// cout <<  m->getAddress() << " = " <<  m->getArgAsFloat(0) << endl;
 				*valueFloat = ((-0.001 < m->getArgAsFloat(0) && m->getArgAsFloat(0) < 0.001)?0.0:m->getArgAsFloat(0)); //avoiding errros when isadora sends -2.38419e-08 in stead of zero
 				oldFloat = ((-0.001 < m->getArgAsFloat(0) && m->getArgAsFloat(0) < 0.001)?0.0:m->getArgAsFloat(0));
 			}/*else if(type == SHARED_RGBA){

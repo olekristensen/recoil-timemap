@@ -283,8 +283,12 @@ public:
 	}
 		
 	int getNumberLines(){
-		cout << "getNumerLines() == " << lines.size() << endl;
+		//cout << "getNumerLines() == " << lines.size() << endl;
 		return lines.size();
+	}
+	
+	int getNumberBodies() {
+		return bodies.size();
 	}
 	
 	void setFont( TextFontHolder * _font){

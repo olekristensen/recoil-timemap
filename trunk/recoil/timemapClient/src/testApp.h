@@ -71,9 +71,7 @@ public:
 	ofPoint cameraCorners[3][4];
 	ofPoint projectorCorners[3][4];
 	
-	Camera camera1;
-	Camera camera2;
-	Camera camera3;
+	Camera camera[3];
 		
 	ofVideoGrabber vidTracker;
 	ofTexture trackerTexture;
@@ -99,29 +97,25 @@ public:
 	btClock clock;
 	
 	btDefaultMotionState silhouette1MotionState;
-	btConvexHullShape silhouette1Shape;
-	btVector3 silhouette1Points;
-	int numSilhouette1Points;
 
 	btDefaultMotionState silhouette2MotionState;
-	btConvexHullShape silhouette2Shape;
-	btVector3 silhouette2Points;
-	int numSilhouette2Points;
 	
 	btDefaultMotionState silhouette3MotionState;
-	btConvexHullShape silhouette3Shape;
-	btVector3 silhouette3Points;
-	int numSilhouette3Points;
 	
 	btDefaultMotionState fallMotionState;
 	
 	btVector3* btGravity;
-	bool worldWrapEdges;
+	
+	bool worldWrapX;
+	bool worldWrapY;
+	bool worldGround;
+	bool worldGroundState;
 	
 	int cornerWarperIndex;
 	
 	bool debug;
 	bool status;
+	bool showCams;
 
 	ofxLight light1; 
 	bool bSmoothLight;
@@ -170,7 +164,9 @@ public:
 	bool	textRefresh[3];
 	bool	textAnimate[3];
 	bool	textScaffolding[3];
-
+	
+	float statusOffset;
+	float debugOffset;
 	string	bulletStatus[4];
 	ofImage testCard1;
 	ofImage testCard2;
@@ -178,6 +174,7 @@ public:
 	
 	
 	TextFontHolder  statusFont;
+	TextFontHolder  statusFontBold;
 
 
 };
