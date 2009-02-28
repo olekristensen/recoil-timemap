@@ -140,6 +140,8 @@ void testApp::setup(){
 
 	debug = false;
 	status = false;
+	statusOffset = 0.0;
+	
 	statusFont = TextFontHolder("ApexSerif-Book.otf",10);
 	
 	testCard1.loadImage("768x1024.001.png");
@@ -190,7 +192,7 @@ void testApp::bulletSetup(){
 		collisionConfiguration = new btDefaultCollisionConfiguration();
 		
 #ifdef USE_PARALLEL_DISPATCHER
-		int maxNumOutstandingTasks = 4;
+		int maxNumOutstandingTasks = 6;
 		
 #ifdef USE_WIN32_THREADING
 		
@@ -290,7 +292,7 @@ void testApp::bulletSetup(){
 	
 	dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,broadphase,solver,collisionConfiguration);
 
-	dynamicsWorld->getSolverInfo().m_numIterations = 4;
+	dynamicsWorld->getSolverInfo().m_numIterations = 6;
 	dynamicsWorld->getSolverInfo().m_solverMode = SOLVER_SIMD+SOLVER_USE_WARMSTARTING;
 	
 	dynamicsWorld->getDispatchInfo().m_enableSPU = true;
@@ -602,6 +604,23 @@ void testApp::textUpdate(){
 //--------------------------------------------------------------
 
 void testApp::draw(){
+	
+	if(status){
+		if(statusOffset <1.0)
+			statusOffset += 0.01+((1.0-statusOffset)*0.06);
+	} else {
+		if(statusOffset >0.0)
+			statusOffset -= 0.01+(statusOffset*0.05);
+	}
+	
+	if(debug){
+		if(debugOffset <1.0)
+			debugOffset += 0.01+((1.0-debugOffset)*0.06);
+	} else {
+		if(debugOffset >0.0)
+			debugOffset -= 0.01+(debugOffset*0.05);
+	}
+	
 	//OpenGL stuff
 	glEnable(GL_DEPTH_TEST);
 
@@ -854,7 +873,7 @@ void testApp::draw(){
 	
 	//Debug perspective overview	
 	
-	if(debug) {
+	if(debugOffset > 0.0) {
 	
 	int w, h;
 	
@@ -865,7 +884,7 @@ void testApp::draw(){
 	screenFov 		= 60.0f;
 	
 	float eyeX 		= (float)w / 2.0;
-	float eyeY 		= (float)h / 2.0;
+	float eyeY 		= (((1.0-debugOffset)*-1.0)+1.0) * (float)h / 2.0;
 	halfFov 		= PI * screenFov / 360.0;
 	theTan 			= tanf(halfFov);
 	float dist 		= eyeY / theTan;
@@ -878,10 +897,11 @@ void testApp::draw(){
 	gluPerspective(screenFov, aspect, nearDist, farDist);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	gluLookAt(eyeX*1.5, eyeY*3.0, dist*4.0, eyeX*1.5, eyeY*2.0, 0.0, 1.0, 0.0, 0.0);
+	gluLookAt(eyeX*1.5, eyeY*3.5, dist*4.0, eyeX*1.5, (((1.0-debugOffset)*-1.8)+1.0)*eyeY*(1+(statusOffset)), 0.0, 1.0, 0.0, 0.0);
 	
 	glScalef(1, -1, 1);           // invert Y axis so increasing Y goes down.
   	glTranslatef(0, -(float)ofGetWidth()/3.0, 0);       // shift origin up to upper-left corner.
+	glTranslatef(0,(1.0-statusOffset)*-100.0,0);
 	
 	glViewport((ofGetWidth()/3.0), 0, ofGetWidth()/6.0, ofGetHeight());
 
@@ -902,15 +922,22 @@ void testApp::draw(){
 	glClear(GL_DEPTH_BUFFER_BIT);
 		
 		bool statusBefore = status;
+		bool debugBefore = debug;
+		float statusOffsetBefore = statusOffset;
+		float debugOffsetBefore = debugOffset;
 		status = false;
+		statusOffset = 0.0;
+		debugOffset = 0.0;
 		debug = false;
 		drawViewport();
-		debug = true;
+		debug = debugBefore;
 		status = statusBefore;
+		statusOffset = statusOffsetBefore;
+		debugOffset = debugOffsetBefore;
 				
 	ofEnableAlphaBlending();
 	glDisable(GL_DEPTH_TEST);
-	ofSetColor(0, 64, 255,64);
+	ofSetColor(0, 64, 255,64*debugOffset);
 	ofFill();
 	ofRect(0,0,ofGetHeight()*3.0,ofGetWidth()/3.0);
 
@@ -932,6 +959,9 @@ void testApp::drawViewport(){
 
 	//** grids etc. for projection calibration
 
+	glEnable(GL_DEPTH_TEST);
+	ofEnableAlphaBlending();
+
 	if(moveProjectorCorners){
 		glTranslatef(0.0, 0.0, -400.0);
 		ofSetColor(255,255,255);
@@ -950,9 +980,6 @@ void testApp::drawViewport(){
 		}
 		glTranslatef(0.0, 0.0, 300.0);
 	}
-	
-	glEnable(GL_DEPTH_TEST);
-	ofEnableAlphaBlending();
 	
 	//Draw Background
 	
@@ -1000,29 +1027,32 @@ void testApp::drawViewport(){
 	
 	//trackerTexture.draw(0,0);	
 	
-	if(debug){
+	if(debugOffset > 0.0){
 		ofEnableAlphaBlending();
 		glPushMatrix();
-		glTranslatef(0,0,10);
-		ofSetColor(8, 8, 16, 250);
-		ofRect(ofGetHeight(),0,ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0));
+		glTranslatef(0,(1.0-statusOffset)*-90.0,10);
+		ofSetColor(4, 4, 8, 240 * debugOffset);
+		ofRect(ofGetHeight(),-20,ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+60);
 		for(int i=0;i<roundf((ofGetWidth()/6.0)/3.0);i+=3){
-			ofSetColor(8, 8, 16, 250*(1.0-(i/((ofGetWidth()/6.0)/3.0))));
-			ofRect(ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+i, ofGetHeight(), 3);
+			ofSetColor(4, 4, 8, debugOffset*240*cos(2.0*(i/((ofGetWidth()/6.0)/3.0))));
+			ofRect(ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+i+40, ofGetHeight(), 3);
 		}
 		glPopMatrix();
 	}
 	
-	if(status){
+	if(statusOffset > 0.0){
 		glDisable(GL_DEPTH_TEST);
 		ofEnableAlphaBlending();
 		glPushMatrix();
 		glTranslatef(0,0,10);
+		for(int i=0 ; i<100 ; i+=2){
+			ofSetColor(12*(i/100.0), 12*(i/100.0), (12*(i/100.0))+4, statusOffset*((100.0-i)+64.0));
+			ofRect(0,i, ofGetHeight()*3.0,2.0);
+		}
 		
-		ofSetColor(8, 8, 8, 127);
 		ofRect(0,0,ofGetWidth(),100);
 		
-		ofSetColor(255, 255, 255);
+		ofSetColor(255, 255, 255, 255*statusOffset);
 
 		glPushMatrix();
 		glTranslatef(10, 10, 1.0);
@@ -1050,7 +1080,7 @@ void testApp::drawViewport(){
 		
 		
 		glPushMatrix();
-		ofSetColor(255, 255, 255);
+		ofSetColor(255, 255, 255, 255*statusOffset);
 		glTranslatef(10, 20, 1.0);
 		statusFont.drastring("FPS: " + ofToString(ofGetFrameRate(),2),0,0);
 		glTranslatef(0, 20, 0);
