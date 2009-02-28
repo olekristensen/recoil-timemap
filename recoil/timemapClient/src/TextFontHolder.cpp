@@ -26,13 +26,14 @@
 //------------------------------------------------------------------
 TextFontHolder::TextFontHolder(){	
 	bLoadedOk = false;
-	fontSize = 0;
+	fontSize = 0.0;
 }
 
 //------------------------------------------------------------------
 
-TextFontHolder::TextFontHolder(string file, int _fontSize = 20){
+TextFontHolder::TextFontHolder(string file, float _fontSize = 20){
 	bLoadedOk = false;
+	fontSize = _fontSize;
 	loadFont(file, _fontSize, true, true);
 }
 
@@ -43,14 +44,15 @@ TextFontHolder::~TextFontHolder(){
 
 
 //------------------------------------------------------------------
-void TextFontHolder::loadFont(string filename, int fontsize){
-	loadFont(filename, fontsize, true, true);
+void TextFontHolder::loadFont(string filename, float _fontsize){
+	loadFont(filename, _fontsize, true, true);
 }
 //------------------------------------------------------------------
-void TextFontHolder::loadFont(string filename, int fontsize, bool _bAntiAliased, bool _bFullCharacterSet){
+void TextFontHolder::loadFont(string filename, float _fontSize, bool _bAntiAliased, bool _bFullCharacterSet){
 	font = new FTGLPolygonFont(ofToDataPath(filename).c_str());	
-  	bLoadedOk = true;	
-	font->FaceSize(fontsize);
+  	bLoadedOk = true;
+	fontSize = _fontSize;
+	font->FaceSize(_fontSize);
 }
 
 //-----------------------------------------------------------
@@ -72,25 +74,29 @@ float TextFontHolder::getLineHeight(){
 	return lineHeight;
 }
 
-//-----------------------------------------------------------
-void TextFontHolder::drawChar(int c, float x, float y) {
-	
-}
-
 
 //-----------------------------------------------------------
 float TextFontHolder::stringWidth(string c) {
-    ofRectangle rect = getStringBoundingBox(c, 0,0);
-    return rect.width;
+	return font->Advance(c.c_str());
+}
+
+float TextFontHolder::stringWidth(wstring c) {
+	return font->Advance(c.c_str());
 }
 
 
 ofRectangle TextFontHolder::getStringBoundingBox(string c, float x, float y){
+	wstring utf32result;
+	utf8::utf8to32(c.begin(), c.end(), back_inserter(utf32result));
+	
+	return getStringBoundingBox(utf32result, x, y);
+}
+
+ofRectangle TextFontHolder::getStringBoundingBox(wstring c, float x, float y){
 	float llx, lly, llz, urx, ury, urz;
 	font->BBox(c.c_str(), llx, lly, llz, urx, ury, urz);
 	return ofRectangle(llx, lly,  urx-llx, ury-lly);
 }
-
 
 
 //-----------------------------------------------------------
@@ -99,8 +105,21 @@ float TextFontHolder::stringHeight(string c) {
     return rect.height;
 }
 
+float TextFontHolder::stringHeight(wstring c) {
+    ofRectangle rect = getStringBoundingBox(c, 0,0);
+    return rect.height;
+}
+
 //=====================================================================
-void TextFontHolder::drawString(string c, float x, float y) {
+void TextFontHolder::drastring(string c, float x, float y) {
+	
+	wstring utf32result;
+	utf8::utf8to32(c.begin(), c.end(), back_inserter(utf32result));
+	
+	drastring(utf32result, x,y);
+}
+
+void TextFontHolder::drastring(wstring c, float x, float y) {
 	glPushMatrix();
 	glScaled(1.0, -1.0, 1.0);
 	font->Render(c.c_str());

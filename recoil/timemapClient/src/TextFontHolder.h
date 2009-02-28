@@ -2,6 +2,7 @@
 #define RECOIL_TEXTFONT
 
 #define OF_ADDON_USING_OFSHADER
+#define OF_ADDON_USING_OFXUTF8
 
 #include "ofMain.h"
 #include "ofAddons.h"
@@ -19,19 +20,30 @@ public:
 	//TextFontHolder(){}
 	TextFontHolder();
 	TextFontHolder(string file);
-	TextFontHolder(string file, int _fontSize);
+	TextFontHolder(string file, float _fontSize);
 		
 	void renderString(string text){
-		drawString(text, 0, 0);
-	//	shader.setShaderActive(false);
+		drastring(text, 0, 0);
+	}
+	
+	void renderString(wstring text){
+		drastring(text, 0, 0);
 	}
 	
 	float getWidth(string text){
 		return stringWidth(text);
 	}
 	
+	float getWidth(wstring text){
+		return stringWidth(text);
+	}
+	
+	float getCharSetWidth(wstring character){
+		return getWidth(character);
+		return 0;
+	}
+	
 	float getCharSetWidth(string character){
-	//	return cps[(unsigned char) character - NUM_CHARACTER_TO_START].setWidth;
 		return getWidth(character);
 		return 0;
 	}
@@ -39,20 +51,24 @@ public:
 	float getHeight(string text){
 		return stringHeight(text);
 	}
-
+	
+	float getHeight(wstring text){
+		return stringHeight(text);
+	}
+	
 	float getCalculatedHeight(){
 		return getLineHeight() + 2*border;
 	}
 	
-	int getFontSize(){
+	float getFontSize(){
 		return fontSize;
 	}
 		
 	~TextFontHolder();
 	
 	// 			-- default, non-full char set, anti aliased:
-	void 		loadFont(string filename, int fontsize);
-	void 		loadFont(string filename, int fontsize, bool _bAntiAliased, bool _bFullCharacterSet);
+	void 		loadFont(string filename, float fontsize);
+	void 		loadFont(string filename, float fontsize, bool _bAntiAliased, bool _bFullCharacterSet);
 	
 	bool		bLoadedOk;
 	bool 		bAntiAlised;
@@ -61,10 +77,16 @@ public:
   	float 		getLineHeight();
   	void 		setLineHeight(float height);
 	float 		stringWidth(string s);
+	float 		stringWidth(wstring s);
 	float 		stringHeight(string s);
-		ofRectangle    getStringBoundingBox(string s, float x, float y);
+	float 		stringHeight(wstring s);
+
+	ofRectangle    getStringBoundingBox(string s, float x, float y);
+	ofRectangle    getStringBoundingBox(wstring s, float x, float y);
 	
-	void 		drawString(string s, float x, float y);
+	void 		drastring(string s, float x, float y);
+	void 		drastring(wstring s, float x, float y);
+
 	int 		nCharacters;
 	
 	GLuint		*	texNames;		// textures for each character
@@ -74,11 +96,11 @@ protected:
 	float 			lineHeight;
 	charProps 		* 	cps;			// properties for each character
 	
-	int				fontSize;
+	float				fontSize;
 	
 	void 			drawChar(int c, float x, float y);
 	int 			ofNextPow2(int a);
-	int				border, visibleBorder;
+	float				border, visibleBorder;
 	
 	FTGLPolygonFont * font;
 	
