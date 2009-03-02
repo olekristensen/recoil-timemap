@@ -1,7 +1,6 @@
 #define USE_PARALLEL_DISPATCHER 1
 
 #include "testApp.h"
-#include <FTGL/ftgl.h>
 
 const int maxProxies = 32766;
 const int maxOverlap = 65535;
@@ -24,9 +23,8 @@ void testApp::setup(){
 	
 	// General setup
 	
-	ofHideCursor();
 	ofBackground(0, 0, 0);
-	ofSetFrameRate(120);
+	ofSetFrameRate(30);
 	
 	// OSC Setup for sharedVariables
 	
@@ -91,8 +89,6 @@ void testApp::setup(){
 
 	textSetup();
 
-	textUpdate();
-
 	for(int i=0;i<3;i++){
 		sharedVariables.push_back(SharedVariable(&textStrings[i],		"textStrings"		+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&textFontSize[i],		"textFontSize"		+ofToString(i, 0)));
@@ -112,10 +108,23 @@ void testApp::setup(){
 		sharedVariables.push_back(SharedVariable(&textColorG[i],		"textColorG"		+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&textColorB[i],		"textColorB"		+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&textColorA[i],		"textColorA"		+ofToString(i, 0)));
+		
+		backgroundColorR[i] = 0.0;
+		backgroundColorG[i] = 0.0;
+		backgroundColorB[i] = 0.0;
+		
 		sharedVariables.push_back(SharedVariable(&backgroundColorR[i],	"backgroundColorR"	+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&backgroundColorG[i],	"backgroundColorG"	+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&backgroundColorB[i],	"backgroundColorB"	+ofToString(i, 0)));
+	
+		textState[i] = TEXT_STATE_RESET;
+		textAnimate[i] = false;
 	}
+	
+	// 3x updates making sure remote enabling of animation is not crashing us on startup
+	textUpdate();
+	textUpdate();
+	textUpdate();
 	
 	//---
 	//Light
@@ -147,14 +156,17 @@ void testApp::setup(){
 
 	statusFont = TextFontHolder("ApexNew-Medium.otf",10);
 	statusFontBold = TextFontHolder("ApexNew-Bold.otf",10);
-	
-	debug = false;
-	debugOffset = 0.0;
-	status = false;
+
+	perspectiveOffset = 0.0;
 	statusOffset = 0.0;
+
+	showPerspective = false;
+	showStatus = false;
+	showCams = false;
 	
-	sharedVariables.push_back(SharedVariable(&status,	"status"));
-	sharedVariables.push_back(SharedVariable(&debug,	"debug"));
+	sharedVariables.push_back(SharedVariable(&showStatus,		"showStatus"));
+	sharedVariables.push_back(SharedVariable(&showPerspective,	"showPerspective"));
+	sharedVariables.push_back(SharedVariable(&showCams,			"showCams"));
 
 	testCard1.loadImage("768x1024.001.png");
 	testCard2.loadImage("768x1024.002.png");
@@ -345,14 +357,13 @@ void testApp::update(){
 	//recieve osc messages
 	while( receiver.hasWaitingMessages() )
 	{	
-
 		ofxOscMessage m;
 		
 		receiver.getNextMessage( &m );		
 		for(int i=0;i<sharedVariables.size();i++){
-			//cout<<m.getAddress()<<endl;
-			sharedVariables[i].handleOsc(&m);
-		}
+				//cout<<m.getAddress()<<endl;
+				sharedVariables[i].handleOsc(&m);
+			}
 	}
 	
 	// Videograbber
@@ -464,9 +475,11 @@ void testApp::update(){
 	//Collider
 
 	if(mouseX > 0 && mouseX < ofGetWidth()){
+		ofHideCursor();
 		point.x += (mouseX*3.0/4.0-point.x);
 		point.y += (mouseY*4.0/3.0-point.y );
 	} else {
+		ofShowCursor();
 		point.x += (p.x-point.x)*0.2;
 		point.y += (p.y-point.y )*0.2;
 	}
@@ -479,18 +492,21 @@ void testApp::update(){
 	col_pos = col_trans.getOrigin();
 
 	ofxPoint2f d[4];
+#pragma omp parallel for 
 	for(int i=0;i<4;i++){
 		d[i].x = (float)cameraCorners[0][i].x;
 		d[i].y = (float)cameraCorners[0][i].y;
 	}
 	camera[0].updateWarp(d);
 	
+#pragma omp parallel for 
 	for(int i=0;i<4;i++){
 		d[i].x = (float)cameraCorners[1][i].x;
 		d[i].y = (float)cameraCorners[1][i].y;
 	}
 	camera[1].updateWarp(d);
 
+#pragma omp parallel for 
 	for(int i=0;i<4;i++){
 		d[i].x = (float)cameraCorners[2][i].x;
 		d[i].y = (float)cameraCorners[2][i].y;
@@ -543,23 +559,7 @@ void testApp::update(){
 	delete silhouette1;
 	delete silhouette2;
 	delete silhouette3;
-	
-
-	/**
-	for (int i = 0; i < silhouette1Shape->getNumPoints(); i++ ){
-		btVector3* aPoint = silhouette1Shape->getUnscaledPoints()+i;
-		delete aPoint;
-	}
-	for (int i = 0; i < silhouette2Shape->getNumPoints(); i++ ){
-		btVector3* aPoint = silhouette2Shape->getUnscaledPoints()+i;
-		delete aPoint;
-	}
-	for (int i = 0; i < silhouette3Shape->getNumPoints(); i++ ){
-		btVector3* aPoint = silhouette3Shape->getUnscaledPoints()+i;
-		delete aPoint;
-	}
-	 **/
-	
+		
 	delete silhouette1Shape;
 	delete silhouette2Shape;
 	delete silhouette3Shape;
@@ -608,7 +608,7 @@ void testApp::textUpdate(){
 			   texts[i].getWidth() != textWidth[i])
 			{
 				texts[i].clear();
-				fonts[i] = TextFontHolder("ApexSerif-Book.otf", textFontSize[i]);
+				fonts[i].setFontSize(textFontSize[i]);
 				texts[i].setFont(&fonts[i]);
 				texts[i].setText(textStrings[i]);
 				texts[i].setWordBlocks(true);
@@ -652,7 +652,7 @@ void testApp::textUpdate(){
 
 void testApp::draw(){
 	
-	if(status){
+	if(showStatus){
 		if(statusOffset <1.0)
 			statusOffset += 0.01+((1.0-statusOffset)*0.06);
 	} else {
@@ -660,12 +660,12 @@ void testApp::draw(){
 			statusOffset -= 0.01+(statusOffset*0.05);
 	}
 	
-	if(debug){
-		if(debugOffset <1.0)
-			debugOffset += 0.01+((1.0-debugOffset)*0.06);
+	if(showPerspective){
+		if(perspectiveOffset <1.0)
+			perspectiveOffset += 0.01+((1.0-perspectiveOffset)*0.06);
 	} else {
-		if(debugOffset >0.0)
-			debugOffset -= 0.01+(debugOffset*0.05);
+		if(perspectiveOffset >0.0)
+			perspectiveOffset -= 0.01+(perspectiveOffset*0.05);
 	}
 	
 	//OpenGL stuff
@@ -918,9 +918,9 @@ void testApp::draw(){
 	glDisable(GL_CLIP_PLANE4);
 	
 	
-	//Debug perspective overview	
+	//perspective overview	
 	
-	if(debugOffset > 0.0) {
+	if(perspectiveOffset > 0.0) {
 	
 	int w, h;
 	
@@ -931,7 +931,7 @@ void testApp::draw(){
 	screenFov 		= 60.0f;
 	
 	float eyeX 		= (float)w / 2.0;
-	float eyeY 		= (((1.0-debugOffset)*-1.0)+1.0) * (float)h / 2.0;
+	float eyeY 		= (((1.0-perspectiveOffset)*-1.0)+1.0) * (float)h / 2.0;
 	halfFov 		= PI * screenFov / 360.0;
 	theTan 			= tanf(halfFov);
 	float dist 		= eyeY / theTan;
@@ -944,7 +944,7 @@ void testApp::draw(){
 	gluPerspective(screenFov, aspect, nearDist, farDist);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	gluLookAt(eyeX*1.5, eyeY*3.5, dist*4.0, eyeX*1.5, (((1.0-debugOffset)*-1.8)+1.0)*eyeY*(1+(statusOffset)), 0.0, 1.0, 0.0, 0.0);
+	gluLookAt(eyeX*1.5, eyeY*3.5, dist*4.0, eyeX*1.5, (((1.0-perspectiveOffset)*-1.8)+1.0)*eyeY*(1+(statusOffset)), 0.0, 1.0, 0.0, 0.0);
 	
 	glScalef(1, -1, 1);           // invert Y axis so increasing Y goes down.
   	glTranslatef(0, -(float)ofGetWidth()/3.0, 0);       // shift origin up to upper-left corner.
@@ -968,23 +968,23 @@ void testApp::draw(){
 	
 	glClear(GL_DEPTH_BUFFER_BIT);
 		
-		bool statusBefore = status;
-		bool debugBefore = debug;
+		bool showStatusBefore = showStatus;
+		bool showPerspectiveBefore = showPerspective;
 		float statusOffsetBefore = statusOffset;
-		float debugOffsetBefore = debugOffset;
-		status = false;
+		float perspectiveOffsetBefore = perspectiveOffset;
+		showStatus = false;
 		statusOffset = 0.0;
-		debugOffset = 0.0;
-		debug = false;
+		perspectiveOffset = 0.0;
+		showPerspective = false;
 		drawViewport();
-		debug = debugBefore;
-		status = statusBefore;
+		showPerspective = showPerspectiveBefore;
+		showStatus = showStatusBefore;
 		statusOffset = statusOffsetBefore;
-		debugOffset = debugOffsetBefore;
+		perspectiveOffset = perspectiveOffsetBefore;
 				
 	ofEnableAlphaBlending();
 	glDisable(GL_DEPTH_TEST);
-	ofSetColor(0, 64, 255,64*debugOffset);
+	ofSetColor(0, 64, 255,64*perspectiveOffset);
 	ofFill();
 	ofRect(0,0,ofGetHeight()*3.0,ofGetWidth()/3.0);
 
@@ -1053,7 +1053,8 @@ void testApp::drawViewport(){
 
 	//Collider
 	
-	btTransform trans;
+	if (mouseX > 0){
+		btTransform trans;
 	btVector3 pos;
 	btMatrix3x3 basis;		
 	collider->getMotionState()->getWorldTransform(trans);
@@ -1066,23 +1067,24 @@ void testApp::drawViewport(){
 		ofRect(0,0,20,20);
 	glPopMatrix();
 	glPushMatrix();
-	glTranslatef(mouseX*3.0/4.0-10,mouseY*4.0/3.0-10, 0);
-	ofFill();
-	ofSetColor(0, 255, 0);
-	ofRect(0,0,20,20);
+		glTranslatef(mouseX*3.0/4.0-10,mouseY*4.0/3.0-10, 0);
+		ofFill();
+		ofSetColor(0, 255, 0);
+		ofRect(0,0,20,20);
 	glPopMatrix();
+	}
 	
 	//trackerTexture.draw(0,0);	
 	
-	if(debugOffset > 0.0){
+	if(perspectiveOffset > 0.0){
 		glDisable(GL_DEPTH_TEST);
 		ofEnableAlphaBlending();
 		glPushMatrix();
 		glTranslatef(0,0,10);
-		ofSetColor(8+(backgroundColorR[1]*64.0), 10+(backgroundColorG[1]*64.0), 16+(backgroundColorB[1]*64.0), 240 * debugOffset);
+		ofSetColor(8+(backgroundColorR[1]*64.0), 10+(backgroundColorG[1]*64.0), 16+(backgroundColorB[1]*64.0), 240 * perspectiveOffset);
 		ofRect(ofGetHeight(),0,ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+(statusOffset*90.0));
 		for(int i=0;i<roundf((ofGetWidth()/6.0)/3.0);i+=3){
-			ofSetColor(8+(backgroundColorR[1]*64.0), 10+(backgroundColorG[1]*64.0), 16+(backgroundColorB[1]*64.0),  debugOffset*240*cos(2.0*(i/((ofGetWidth()/6.0)/3.0))));
+			ofSetColor(8+(backgroundColorR[1]*64.0), 10+(backgroundColorG[1]*64.0), 16+(backgroundColorB[1]*64.0),  perspectiveOffset*240*cos(2.0*(i/((ofGetWidth()/6.0)/3.0))));
 			ofRect(ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+i+(statusOffset*90.0), ofGetHeight(), 3);
 		}
 		glPopMatrix();
@@ -1145,43 +1147,43 @@ void testApp::drawViewport(){
 			glTranslatef((i*ofGetHeight())+10, 20, 1.0);
 			glPushMatrix();
 			ofSetColor(255, 255, 255, 255*statusOffset);
-			statusFontBold.drastring("FPS: " + ofToString(ofGetFrameRate(),2),0,0);
+			statusFontBold.drawString("FPS: " + ofToString(ofGetFrameRate(),2),0,0);
 			glTranslatef(0, 26, 0);
 			ofSetColor(255, 255, 255, 63*statusOffset);
-			statusFont.drastring(bulletStatus[3],0,0);
+			statusFont.drawString(bulletStatus[3],0,0);
 			glTranslatef(0, 13, 0);
 			ofSetColor(255, 255, 255, 127*statusOffset);
-			statusFont.drastring(bulletStatus[2],0,0);
+			statusFont.drawString(bulletStatus[2],0,0);
 			glTranslatef(0, 13, 0);
 			ofSetColor(255, 255, 255, 191*statusOffset);
-			statusFont.drastring(bulletStatus[1],0,0);
+			statusFont.drawString(bulletStatus[1],0,0);
 			glTranslatef(0, 13, 0);
 			ofSetColor(255, 255, 255, 255*statusOffset);
-			statusFontBold.drastring(bulletStatus[0],0,0);
+			statusFontBold.drawString(bulletStatus[0],0,0);
 			ofSetColor(255, 255, 255, 255*statusOffset);
 			glPopMatrix();
 			glPushMatrix();
 			glTranslatef(textOffset-(80*(4/3.0)), 0, 0);
-			statusFontBold.drastring("Screen # "+ofToString(i+1),0,0);
+			statusFontBold.drawString("Screen # "+ofToString(i+1),0,0);
 			glTranslatef(0, 40, 0);
-			statusFont.drastring("Bullet Bodies:",0,0);
+			statusFont.drawString("Bullet Bodies:",0,0);
 			glTranslatef(0, 13, 0);
-			statusFont.drastring("Text Lines:",0,0);
+			statusFont.drawString("Text Lines:",0,0);
 			glTranslatef(0, 13, 0);
-			statusFont.drastring("Blobs:",0,0);
+			statusFont.drawString("Blobs:",0,0);
 			glPopMatrix();
 			ofSetColor(255, 255, 255, 255*statusOffset);
 			glPushMatrix();
 			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(texts[i].getNumberBodies())), 40, 0);
-			statusFontBold.drastring(ofToString(texts[i].getNumberBodies()),0,0);
+			statusFontBold.drawString(ofToString(texts[i].getNumberBodies()),0,0);
 			glPopMatrix();
 			glPushMatrix();
 			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(texts[i].getNumberLines())), 53, 0);
-			statusFontBold.drastring(ofToString(texts[i].getNumberLines()),0,0);
+			statusFontBold.drawString(ofToString(texts[i].getNumberLines()),0,0);
 			glPopMatrix();
 			glPushMatrix();
 			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(camera[i].contourFinder.nBlobs)), 66, 0);
-			statusFontBold.drastring(ofToString(camera[i].contourFinder.nBlobs ),0,0);
+			statusFontBold.drawString(ofToString(camera[i].contourFinder.nBlobs ),0,0);
 			glPopMatrix();
 		glPopMatrix();
 		}
@@ -1256,11 +1258,11 @@ void testApp::keyPressed  (int key){
 		case 'c':
 			showCams = !showCams;
 			break;
-		case 'd':
-			debug = !debug;
+		case 'p':
+			showPerspective = !showPerspective;
 			break;
 		case 's':
-			status = !status;
+			showStatus = !showStatus;
 			break;
 		case 'r':
 //			text->clear();
