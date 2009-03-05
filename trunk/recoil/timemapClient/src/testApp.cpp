@@ -33,7 +33,7 @@ void testApp::setup(){
 	
 	ofxOscMessage m;
 	m.setAddress( ("/sendVariables/please"));
-	m.addIntArg(1);
+	m.addIntArg(8001);
 	sender.sendMessage( m );
 
 	// Add sharedvariables
@@ -75,12 +75,14 @@ void testApp::setup(){
 	worldWrapX = false;
 	worldWrapY = false;
 	worldGround = true;
+	worldConstrainZ = false;
 	
 	sharedVariables.push_back(SharedVariable(&btGravity->m_floats[0],	"worldGravityX"));
 	sharedVariables.push_back(SharedVariable(&btGravity->m_floats[1],	"worldGravityY"));
 	sharedVariables.push_back(SharedVariable(&btGravity->m_floats[2],	"worldGravityZ"));
 	sharedVariables.push_back(SharedVariable(&worldWrapX,				"worldWrapX"));
 	sharedVariables.push_back(SharedVariable(&worldWrapY,				"worldWrapY"));
+	sharedVariables.push_back(SharedVariable(&worldConstrainZ,			"worldConstrainZ"));
 	sharedVariables.push_back(SharedVariable(&worldGround,				"worldGround"));
 	
 	bulletSetup();
@@ -168,6 +170,14 @@ void testApp::setup(){
 	sharedVariables.push_back(SharedVariable(&showPerspective,	"showPerspective"));
 	sharedVariables.push_back(SharedVariable(&showCams,			"showCams"));
 
+	screensAliveTime = 0;
+	screensAliveLastTime = 0;
+	
+	sharedVariables.push_back(SharedVariable(&screensAliveTime,	"screensAliveTime"));
+	sharedVariables.push_back(SharedVariable(&screensAliveLastTime,	"screensAliveLastTime"));
+
+	controlPanelOnline = false;
+	
 	testCard1.loadImage("768x1024.001.png");
 	testCard2.loadImage("768x1024.002.png");
 	testCard3.loadImage("768x1024.003.png");
@@ -353,6 +363,8 @@ void testApp::update(){
 	for(int i=0;i<sharedVariables.size();i++){
 		sharedVariables[i].update(&sender);
 	}
+
+	int screensAliveTimeBeforeUpdate = screensAliveTime;
 	
 	//recieve osc messages
 	while( receiver.hasWaitingMessages() )
@@ -364,6 +376,13 @@ void testApp::update(){
 				//cout<<m.getAddress()<<endl;
 				sharedVariables[i].handleOsc(&m);
 			}
+	}
+	
+	controlPanelOnline = (ofGetElapsedTimeMillis() - controlPanelOnlineTime < 500);
+	
+	if(screensAliveTimeBeforeUpdate != screensAliveTime){
+		controlPanelOnlineTime = ofGetElapsedTimeMillis();
+		screensAliveLastTime = screensAliveTime + 500;
 	}
 	
 	// Videograbber
@@ -513,6 +532,11 @@ void testApp::update(){
 	}
 	camera[2].updateWarp(d);
 	
+	
+	// Text
+	
+	textUpdate();
+	
 	 
 #ifdef FIXED_STEP
 	dynamicsWorld->stepSimulation(1.0f/60.f,0);
@@ -545,11 +569,7 @@ void testApp::update(){
 	 }
 	 
 #endif
-	
-	// Text
-	
-	textUpdate();
-	
+		
 	// Silhouette
 	
 	dynamicsWorld->removeRigidBody(silhouette1);
@@ -634,11 +654,12 @@ void testApp::textUpdate(){
 			textState[i] = TEXT_STATE_PHYSICS_ENABLED;
 		}
 		if(textState[i] == TEXT_STATE_PHYSICS_ENABLED){
-			if(textRefresh[i]) {
-				texts[i].setFriction(textFriction[i]);
-				texts[i].setDamping(textDamping[i]);
-				texts[i].setRestitution(textRestitution[i]);
-			}
+			texts[i].setFriction(textFriction[i]);
+			texts[i].setDamping(textDamping[i]);
+			texts[i].setRestitution(textRestitution[i]);
+			texts[i].setWorldWrapX(worldWrapX);
+			texts[i].setWorldWrapY(worldWrapY);
+			texts[i].setWorldConstrainZ(worldConstrainZ);
 			texts[i].updateBullet();
 		}
 		if(textState[i] == TEXT_STATE_PHYSICS_DISABLE){
@@ -1148,7 +1169,15 @@ void testApp::drawViewport(){
 			glPushMatrix();
 			ofSetColor(255, 255, 255, 255*statusOffset);
 			statusFontBold.drawString("FPS: " + ofToString(ofGetFrameRate(),2),0,0);
-			glTranslatef(0, 26, 0);
+			glTranslatef(0, 13, 0);
+			if(controlPanelOnline){
+				ofSetColor(255, 255, 255, 255*statusOffset);
+				statusFontBold.drawString("Online",0,0);
+			} else {
+				ofSetColor(255, 0, 0, 255*statusOffset*cos(ofGetElapsedTimef()*6.0));
+				statusFontBold.drawString("Controlpanel not responding",0,0);
+			}
+			glTranslatef(0, 13, 0);
 			ofSetColor(255, 255, 255, 63*statusOffset);
 			statusFont.drawString(bulletStatus[3],0,0);
 			glTranslatef(0, 13, 0);

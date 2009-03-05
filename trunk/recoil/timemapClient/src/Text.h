@@ -281,7 +281,31 @@ public:
 	float getFriction(){
 		return friction;
 	}
-		
+	
+	void setWorldWrapX(bool _worldWrapX){
+		worldWrapX = _worldWrapX;
+	}
+	
+	bool getWorldWrapX(){
+		return worldWrapX;
+	}
+	
+	void setWorldWrapY(bool _worldWrapY){
+		worldWrapY = _worldWrapY;
+	}
+	
+	bool getWorldWrapY(){
+		return worldWrapY;
+	}
+	
+	void setWorldConstrainZ(bool _worldConstrainZ){
+		worldConstrainZ = _worldConstrainZ;
+	}
+	
+	bool getWorldConstrainZ(){
+		return worldConstrainZ;
+	}
+	
 	int getNumberLines(){
 		//cout << "getNumerLines() == " << lines.size() << endl;
 		return lines.size();
@@ -326,6 +350,7 @@ public:
 			l->bulletBodie->setFriction(friction);
 			l->bulletBodie->setDamping(damping,damping);
 			l->bulletBodie->setRestitution(restitution);
+			l->bulletBodie->setActivationState(DISABLE_DEACTIVATION);
 			bodies.push_back(l->bulletBodie);
 			dynamicsWorld->addRigidBody(l->bulletBodie);
 			l->useBullet = true;
@@ -344,6 +369,7 @@ public:
 		//cout << "bodies: " << bodies.size() << " collisionshapes: " << m_collisionShapes.size() << endl;
 		for (int i=0;i<m_collisionShapes.size();i++) {
 			btCollisionShape* shape = m_collisionShapes[i];
+			cout << "shape " << i << " * " << shape << endl;
 			delete shape;
 		}
 		m_collisionShapes.clear();
@@ -358,18 +384,17 @@ public:
 	
 	int numLetters = getNumberLetters();
 	btTransform trans[numLetters];
+	btMotionState * motionState[numLetters];
 	btVector3 pos[numLetters];
 	btMatrix3x3 basis[numLetters];
 	vector<Letter*> l;
 		
 	for(int i=0; i<numLetters; i++){
-		bodies[i]->getMotionState()->getWorldTransform(trans[i]);
+		motionState[i] = bodies[i]->getMotionState();
+		motionState[i]->getWorldTransform(trans[i]);
 		l.push_back(getLetter(i));
 		pos[i] = trans[i].getOrigin();
-		basis[i] = trans[i].getBasis();		
-		bodies[i]->setFriction(friction);
-		bodies[i]->setDamping(damping,damping);
-		bodies[i]->setRestitution(restitution);
+		basis[i] = trans[i].getBasis();	
 	}
 	
 #pragma omp parallel for 
@@ -391,6 +416,30 @@ public:
 		l[i]->matrix[7] = 0;
 		l[i]->matrix[11] = 0;
 		l[i]->matrix[15] = 1;
+		if(worldWrapX || worldWrapY) {
+			if(worldWrapX && pos[i].getX()*100 < -75.0){
+				pos[i].setX(0.5+(ofGetHeight()*3.0)/100.0);
+			}
+			if(worldWrapX && pos[i].getX()*100 > (ofGetHeight()*3.0)+75.0){
+				pos[i].setX(-0.5);
+			}
+			if(worldWrapY && pos[i].getY()*100 < -75.0){
+				pos[i].setY(0.5+(ofGetWidth()/3.0)/100.0);
+			}
+			if(worldWrapX && pos[i].getY()*100 > (ofGetWidth()/3.0)+75.0){
+				pos[i].setY(-0.5);
+			}
+		}
+		if(worldConstrainZ) {
+			pos[i].setZ(0.0);
+		}
+		trans[i].setOrigin(pos[i]);
+		delete motionState[i];
+		motionState[i] = new btDefaultMotionState(trans[i]);
+		bodies[i]->setMotionState(motionState[i]);
+		bodies[i]->setFriction(friction);
+		bodies[i]->setDamping(damping,damping);
+		bodies[i]->setRestitution(restitution);
 	}
 }
 	
@@ -409,6 +458,9 @@ private:
 	btAlignedObjectArray<btCollisionShape*>	m_collisionShapes;
 	btDiscreteDynamicsWorld * dynamicsWorld;
 	bool cursor;
+	bool worldWrapX;
+	bool worldWrapY;
+	bool worldConstrainZ;
 };
 
 #endif

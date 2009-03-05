@@ -1,7 +1,6 @@
 #ifndef RECOIL_TEXTFONT
 #define RECOIL_TEXTFONT
 
-#define OF_ADDON_USING_OFSHADER
 #define OF_ADDON_USING_OFXUTF8
 
 #include "ofMain.h"
@@ -9,25 +8,22 @@
 
 #include <FTGL/ftgl.h>
 #include <FTGL/FTGLPolygonFont.h>
-//#include <FTGL/FTFont.h>
-//#include <FTGL/FTBBox.h>
 
 
 class TextFontHolder  {
 public:	
     
-	ofShader shader;
 	//TextFontHolder(){}
 	TextFontHolder();
 	TextFontHolder(string file);
 	TextFontHolder(string file, float _fontSize);
 		
 	void renderString(string text){
-		drastring(text, 0, 0);
+		drawString(text, 0, 0);
 	}
 	
 	void renderString(wstring text){
-		drastring(text, 0, 0);
+		drawString(text, 0, 0);
 	}
 	
 	float getWidth(string text){
@@ -60,15 +56,11 @@ public:
 		return getLineHeight() + 2*border;
 	}
 	
-	float getFontSize(){
-		return fontSize;
-	}
-		
 	~TextFontHolder();
 	
 	// 			-- default, non-full char set, anti aliased:
-	void 		loadFont(string filename, float fontsize);
-	void 		loadFont(string filename, float fontsize, bool _bAntiAliased, bool _bFullCharacterSet);
+	int 		loadFont(string filename, float fontsize);
+	int 		loadFont(string filename, float fontsize, bool _bAntiAliased, bool _bFullCharacterSet);
 	
 	bool		bLoadedOk;
 	bool 		bAntiAlised;
@@ -80,12 +72,14 @@ public:
 	float 		stringWidth(wstring s);
 	float 		stringHeight(string s);
 	float 		stringHeight(wstring s);
+	float		getFontSize();
+	void		setFontSize(float _fontSize);
 
 	ofRectangle    getStringBoundingBox(string s, float x, float y);
 	ofRectangle    getStringBoundingBox(wstring s, float x, float y);
 	
-	void 		drastring(string s, float x, float y);
-	void 		drastring(wstring s, float x, float y);
+	void 		drawString(string s, float x, float y);
+	void 		drawString(wstring s, float x, float y);
 
 	int 		nCharacters;
 	
@@ -104,6 +98,7 @@ protected:
 	
 	FTGLPolygonFont * font;
 	
+	string fileName;
 
 };
 #endif
