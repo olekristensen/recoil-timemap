@@ -93,6 +93,7 @@ public:
 		grayDiff.threshold(threshold);		
 		contourFinder.findContours(grayDiff, 2, (size.x*size.y)/3, 10, true);	// find holes
 		if(contourFinder.nBlobs > 0){
+#pragma omp parallel for 
 			for(int j=0;j<contourFinder.nBlobs;j++){
 				for(int i=0;i<contourFinder.blobs[j].nPts;i++){
 					contourFinder.blobs[j].pts[i] = coordwarp.transform(contourFinder.blobs[j].pts[i].x/ (float)size.x,contourFinder.blobs[j].pts[i].y/ (float)size.y);
@@ -140,7 +141,7 @@ public:
 		if(simplify->hasBlob){
 			
 			ofSetColor(128,128, 128);
-			glBegin(GL_POLYGON);	
+			glBegin(GL_POLYGON);
 			for(int i=0;i<simplify->points.size();i++){
 				glVertex3f(simplify->points[i].x*w, simplify->points[i].y*h,0);
 			}

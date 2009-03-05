@@ -12,6 +12,7 @@
 #define OF_ADDON_USING_OFX3DUTIL
 
 //#include "ofShader.h"
+#include "TextFontHolder.h"
 #include "ofMain.h"
 #include "ofAddons.h"
 #include "sharedVariable.h"
@@ -60,6 +61,7 @@ public:
 	
 	ofxOscReceiver	receiver;
 	ofxOscSender sender;
+	ofxOscSender isadora;
 	
 	vector<SharedVariable> sharedVariables;
 	
@@ -94,6 +96,13 @@ public:
 	btSoftBodyWorldInfo	m_softBodyWorldInfo;
 	
 	int millisForUpdate;
+	
+	int screensAliveTime;
+	int screensAliveLastTime;
+	int controlPanelOnlineTime;
+	
+	bool controlPanelOnline;
+
 	btClock clock;
 	
 	btDefaultMotionState silhouette1MotionState;
@@ -108,13 +117,14 @@ public:
 	
 	bool worldWrapX;
 	bool worldWrapY;
+	bool worldConstrainZ;
 	bool worldGround;
 	bool worldGroundState;
 	
 	int cornerWarperIndex;
 	
-	bool debug;
-	bool status;
+	bool showPerspective;
+	bool showStatus;
 	bool showCams;
 
 	ofxLight light1; 
@@ -166,7 +176,7 @@ public:
 	bool	textScaffolding[3];
 	
 	float statusOffset;
-	float debugOffset;
+	float perspectiveOffset;
 	string	bulletStatus[4];
 	ofImage testCard1;
 	ofImage testCard2;

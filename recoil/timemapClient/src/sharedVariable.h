@@ -140,7 +140,7 @@ public:
 	
 	void handleOsc(ofxOscMessage *m){
 		//cout <<  m->getAddress() << "   TYPE: " << m->getArgType(0) << " " << m->getArgTypeName(0) << " " << OFXOSC_TYPE_FLOAT << endl;
-		if ( strcmp( m->getAddress(), ("/sharedvariable/"+id).c_str() ) == 0 ){
+		if ( m->getAddress() == "/sharedvariable/"+id ){
 			if(type == SHARED_BOOL){
 				if(m->getArgType(0) == OFXOSC_TYPE_FLOAT){
 					//avioding crashes when isadora sends a boolean as a float
@@ -159,7 +159,7 @@ public:
 					*valueInt = lrintf(m->getArgAsFloat(0));
 					oldInt = lrintf(m->getArgAsFloat(0));
 				} else {
-					// cout <<  m->getAddress() << " = " <<  m->getArgAsInt32(0) << endl;
+					//cout <<  m->getAddress() << " = " <<  m->getArgAsInt32(0) << endl;
 					*valueInt = m->getArgAsInt32(0);
 					oldInt = m->getArgAsInt32(0);
 				}
