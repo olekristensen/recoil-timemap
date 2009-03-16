@@ -4,6 +4,7 @@
 
 const int maxProxies = 32766;
 const int maxOverlap = 65535;
+const int rainDropSize = 60;
 
 static inline btScalar	UnitRand(){
 	return(rand()/(btScalar)RAND_MAX);
@@ -84,6 +85,7 @@ void testApp::setup(){
 	sharedVariables.push_back(SharedVariable(&worldWrapY,				"worldWrapY"));
 	sharedVariables.push_back(SharedVariable(&worldConstrainZ,			"worldConstrainZ"));
 	sharedVariables.push_back(SharedVariable(&worldGround,				"worldGround"));
+	sharedVariables.push_back(SharedVariable(&worldWalls,				"worldWalls"));
 	
 	bulletSetup();
 
@@ -98,6 +100,7 @@ void testApp::setup(){
 		sharedVariables.push_back(SharedVariable(&textScaffolding[i],	"textScaffolding"	+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&textRefresh[i],		"textRefresh"		+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&textAnimate[i],		"textAnimate"		+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&wordBlocks[i],		"wordBlocks"		+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&textPosition[i].x,	"textPositionX"		+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&textPosition[i].y,	"textPositionY"		+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&textWidth[i],			"textWidth"			+ofToString(i, 0)));
@@ -110,6 +113,7 @@ void testApp::setup(){
 		sharedVariables.push_back(SharedVariable(&textColorG[i],		"textColorG"		+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&textColorB[i],		"textColorB"		+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&textColorA[i],		"textColorA"		+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&textWalls[i],			"textWalls"			+ofToString(i, 0)));
 		
 		backgroundColorR[i] = 0.0;
 		backgroundColorG[i] = 0.0;
@@ -121,13 +125,61 @@ void testApp::setup(){
 	
 		textState[i] = TEXT_STATE_RESET;
 		textAnimate[i] = false;
+		textWallsState[i] = false;
+		
+		camEnable[i] = false;
+		camRefresh[i] = false;
+		camCaptureBackground[1] = false;
+		camDebug[i] = false;
+		camThreshold[i] = 31;
+		
+		sharedVariables.push_back(SharedVariable(&camEnable[i],				"camEnable"				+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&camRefresh[i],			"camRefresh"			+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&camCaptureBackground[i],	"camCaptureBackground"	+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&camDebug[i],				"camDebug"				+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&camThreshold[i],			"camThreshold"			+ofToString(i, 0)));
+		
+		blobColorR[3] = 1.0;
+		blobColorG[3] = 1.0;
+		blobColorB[3] = 1.0;
+		blobColorA[3] = 0.5;
+		blobDamping[3] = 20;
+		blobExpansion[3] = 0.0;
+		
+		sharedVariables.push_back(SharedVariable(&blobColorR[i],	"blobColorR"	+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&blobColorG[i],	"blobColorG"	+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&blobColorB[i],	"blobColorB"	+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&blobColorA[i],	"blobColorA"	+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&blobDamping[i],	"blobDamping"	+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&blobExpansion[i],	"blobExpansion"	+ofToString(i, 0)));
+	
 	}
 	
 	// 3x updates making sure remote enabling of animation is not crashing us on startup
 	textUpdate();
 	textUpdate();
 	textUpdate();
+
+	// Rain
 	
+	rainEnable = false;
+	rainTrigger = false;
+	rainDropCount = 0;
+	
+	yOffset = 0;
+	
+	sharedVariables.push_back(SharedVariable(&rainEnable,	"rainEnable"));
+	sharedVariables.push_back(SharedVariable(&rainTrigger,	"rainTrigger"));
+	sharedVariables.push_back(SharedVariable(&rainDropCount,"rainDropCount"));
+	
+	rainFontSmall = TextFontHolder("GenAR102.TTF",rainDropSize*0.75);
+	rainFontMedium = TextFontHolder("GenAR102.TTF",rainDropSize);
+	rainFontBig = TextFontHolder("GenAR102.TTF",rainDropSize*1.25);
+	
+	rainFontSmall.setLineHeight(rainDropSize*1.1*0.75);
+	rainFontMedium.setLineHeight(rainDropSize*1.1);
+	rainFontBig.setLineHeight(rainDropSize*1.1*1.25);
+
 	//---
 	//Light
 	//reflexions!!
@@ -144,18 +196,35 @@ void testApp::setup(){
 	//light3.ambient(0,0,0); //this basically tints everything with its color, by default is 0,0,0.
 	ofxSetSmoothLight(true);
 	
+	//tracking kamera
 	vidTracker.setVerbose(true);
+	vidTracker.setDeviceID(0);
 	vidTracker.initGrabber(720,576);
-	
+
 	colorImg.allocate(720,576);
+	
 	camera[0].setup(&vidTracker, &trackerTexture, &colorImg,  0,0,vidTracker.width/2, vidTracker.height/2);
 	camera[1].setup(&vidTracker, &trackerTexture, &colorImg,  vidTracker.width/2,0,vidTracker.width/2, vidTracker.height/2);
 	camera[2].setup(&vidTracker, &trackerTexture, &colorImg,  0,vidTracker.height/2,vidTracker.width/2, vidTracker.height/2);
+	
+	//delay kameraer
+	
+	vidLeft.setVerbose(true);
+	vidLeft.setDeviceID(1);
+	vidLeft.initGrabber(720,576);
+	
+	vidRight.setVerbose(true);
+	vidRight.setDeviceID(2);
+	vidRight.initGrabber(720,576);
+	
+	// screen snapshots
 	
 	makeSnaps = false;
 	memset(snapString, 0, 255);		// clear the string by setting all chars to 0
 	snapCounter = 0;
 
+	// status displays
+	
 	statusFont = TextFontHolder("ApexNew-Medium.otf",10);
 	statusFontBold = TextFontHolder("ApexNew-Bold.otf",10);
 
@@ -164,19 +233,22 @@ void testApp::setup(){
 
 	showPerspective = false;
 	showStatus = false;
-	showCams = false;
+	showStatusCams = false;
 	
 	sharedVariables.push_back(SharedVariable(&showStatus,		"showStatus"));
 	sharedVariables.push_back(SharedVariable(&showPerspective,	"showPerspective"));
-	sharedVariables.push_back(SharedVariable(&showCams,			"showCams"));
+	sharedVariables.push_back(SharedVariable(&showStatusCams,	"showStatusCams"));
 
 	screensAliveTime = 0;
 	screensAliveLastTime = 0;
 	
-	sharedVariables.push_back(SharedVariable(&screensAliveTime,	"screensAliveTime"));
+	sharedVariables.push_back(SharedVariable(&screensAliveTime,		"screensAliveTime"));
 	sharedVariables.push_back(SharedVariable(&screensAliveLastTime,	"screensAliveLastTime"));
-
+	
 	controlPanelOnline = false;
+	
+	frameRate = 0.0;
+	sharedVariables.push_back(SharedVariable(&frameRate,	"frameRate"));
 	
 	testCard1.loadImage("768x1024.001.png");
 	testCard2.loadImage("768x1024.002.png");
@@ -209,6 +281,7 @@ void testApp::textSetup(){
 		
 		textRefresh[i] = false;
 		textAnimate[i] = false;
+		wordBlocks[i] = true;
 		textScaffolding[i] = true;
 	}
 }
@@ -226,7 +299,7 @@ void testApp::bulletSetup(){
 		collisionConfiguration = new btDefaultCollisionConfiguration();
 		
 #ifdef USE_PARALLEL_DISPATCHER
-		int maxNumOutstandingTasks = 6;
+		int maxNumOutstandingTasks = 8;
 		
 #ifdef USE_WIN32_THREADING
 		
@@ -326,19 +399,82 @@ void testApp::bulletSetup(){
 	
 	dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,broadphase,solver,collisionConfiguration);
 
-	dynamicsWorld->getSolverInfo().m_numIterations = 6;
-	dynamicsWorld->getSolverInfo().m_solverMode = SOLVER_USE_WARMSTARTING+SOLVER_CUDA;
+	dynamicsWorld->getSolverInfo().m_numIterations = 8;
+	dynamicsWorld->getSolverInfo().m_solverMode = SOLVER_SIMD+SOLVER_USE_WARMSTARTING;
 	
 	dynamicsWorld->getDispatchInfo().m_enableSPU = true;
 	//dynamicsWorld->setGravity(btVector3(0,10,0));
 	dynamicsWorld->setGravity(*btGravity);
 	
-	//Ground 	
+	//Ground
 	btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0,-1.0,0),1);
-	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0.0,((ofGetWidth()/3.0)+100)/100.0,0)));
+	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0.0,((ofGetWidth()/3.0)+100.0)/100.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
 	groundRigidBody = new btRigidBody(groundRigidBodyCI);
-		
+
+	//Left World Wall
+	
+	btCollisionShape* leftWallShape = new btStaticPlaneShape(btVector3(1,0,0),1);
+	btDefaultMotionState* leftWallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(-1.0,0.0,0)));
+	btRigidBody::btRigidBodyConstructionInfo leftWallRigidBodyCI(0,leftWallMotionState,leftWallShape,btVector3(0,0,0));
+	leftWallRigidBody = new btRigidBody(leftWallRigidBodyCI);
+	
+	//Right World Wall
+	
+	btCollisionShape* rightWallShape = new btStaticPlaneShape(btVector3(-1,0,0),1);
+	btDefaultMotionState* rightWallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3((((ofGetHeight()*3.0)+100.0)/100.0),0.0,0)));
+	btRigidBody::btRigidBodyConstructionInfo rightWallRigidBodyCI(0,rightWallMotionState,rightWallShape,btVector3(0,0,0));
+	rightWallRigidBody = new btRigidBody(rightWallRigidBodyCI);
+	
+	//Text 1 walls
+	
+	btCollisionShape* textWall1LeftShape = new btBoxShape(btVector3(0.015,(ofGetWidth()/3.0)/100.0,6000));
+	btDefaultMotionState* textWall1LeftMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(0.0,0.0,0)));
+	btRigidBody::btRigidBodyConstructionInfo textWall1LeftRigidBodyCI(0.,textWall1LeftMotionState,textWall1LeftShape,btVector3(0,0,0));
+	textWall1LeftRigidBody = new btRigidBody(textWall1LeftRigidBodyCI);
+	textWall1LeftRigidBody->setCollisionFlags( textWall1LeftRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
+	textWall1LeftRigidBody->setActivationState(DISABLE_DEACTIVATION);
+	
+	btCollisionShape* textWall1RightShape = new btBoxShape(btVector3(0.015,(ofGetWidth()/3.0)/100.0,6000));
+	btDefaultMotionState* textWall1RightMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3((((ofGetHeight()*3.0))/100.0)/3.0,0.0,0)));
+	btRigidBody::btRigidBodyConstructionInfo textWall1RightRigidBodyCI(0.,textWall1RightMotionState,textWall1RightShape,btVector3(0,0,0));
+	textWall1RightRigidBody = new btRigidBody(textWall1RightRigidBodyCI);
+	textWall1RightRigidBody->setCollisionFlags( textWall1RightRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
+	textWall1RightRigidBody->setActivationState(DISABLE_DEACTIVATION);
+	
+	//Text 2 walls
+
+	btCollisionShape* textWall2LeftShape = new btBoxShape(btVector3(0.015,(ofGetWidth()/3.0)/100.0,6000));
+	btDefaultMotionState* textWall2LeftMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3((((ofGetHeight()*3.0))/100.0)/3.0,0.0,0)));
+	btRigidBody::btRigidBodyConstructionInfo textWall2LeftRigidBodyCI(0.,textWall2LeftMotionState,textWall2LeftShape,btVector3(0,0,0));
+	textWall2LeftRigidBody = new btRigidBody(textWall2LeftRigidBodyCI);
+	textWall2LeftRigidBody->setCollisionFlags( textWall2LeftRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
+	textWall2LeftRigidBody->setActivationState(DISABLE_DEACTIVATION);
+	
+	btCollisionShape* textWall2RightShape = new btBoxShape(btVector3(0.015,(ofGetWidth()/3.0)/100.0,6000));
+	btDefaultMotionState* textWall2RightMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(((((ofGetHeight()*3.0))/100.0)/3.0)*2.0,0.0,0)));
+	btRigidBody::btRigidBodyConstructionInfo textWall2RightRigidBodyCI(0.,textWall2RightMotionState,textWall2RightShape,btVector3(0,0,0));
+	textWall2RightRigidBody = new btRigidBody(textWall2RightRigidBodyCI);
+	textWall2RightRigidBody->setCollisionFlags( textWall2RightRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
+	textWall2RightRigidBody->setActivationState(DISABLE_DEACTIVATION);
+	
+	//Text 3 walls
+	
+	btCollisionShape* textWall3LeftShape = new btBoxShape(btVector3(0.015,((ofGetWidth()/3.0)+100.0)/100.0,6000));
+	btDefaultMotionState* textWall3LeftMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(((((ofGetHeight()*3.0))/100.0)/3.0)*2.0,0.0,0)));
+	btRigidBody::btRigidBodyConstructionInfo textWall3LeftRigidBodyCI(0.,textWall3LeftMotionState,textWall3LeftShape,btVector3(0,0,0));
+	textWall3LeftRigidBody = new btRigidBody(textWall3LeftRigidBodyCI);
+	textWall3LeftRigidBody->setCollisionFlags( textWall3LeftRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
+	textWall3LeftRigidBody->setActivationState(DISABLE_DEACTIVATION);
+
+	btCollisionShape* textWall3RightShape = new btBoxShape(btVector3(0.015,((ofGetWidth()/3.0)+100.0)/100.0,6000));
+	btDefaultMotionState* textWall3RightMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3((((ofGetHeight()*3.0))/100.0),0.0,0)));
+	btRigidBody::btRigidBodyConstructionInfo textWall3RightRigidBodyCI(0.,textWall3RightMotionState,textWall3RightShape,btVector3(0,0,0));
+	textWall3RightRigidBody = new btRigidBody(textWall3RightRigidBodyCI);
+	textWall3RightRigidBody->setCollisionFlags( textWall3RightRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
+	textWall3RightRigidBody->setActivationState(DISABLE_DEACTIVATION);
+
+	
 	//Collider
 	btCollisionShape* fallShape = new btBoxShape(btVector3(0.1,0.1,6000));
 	btVector3 pos = btVector3(1,1,0);
@@ -359,11 +495,8 @@ void testApp::bulletSetup(){
 //--------------------------------------------------------------
 void testApp::update(){
 	
-	//Update shared variables
-	for(int i=0;i<sharedVariables.size();i++){
-		sharedVariables[i].update(&sender);
-	}
-
+	frameRate = ofGetFrameRate();
+	
 	int screensAliveTimeBeforeUpdate = screensAliveTime;
 	
 	//recieve osc messages
@@ -394,7 +527,13 @@ void testApp::update(){
 	if (vidTracker.isFrameNew()){		
 		colorImg.setFromPixels(vidTracker.getPixels(), 720,576);
 		for(int i = 0; i < 3; i++) {
-			camera[i].update();			
+			if(camCaptureBackground[i]){
+				camera[i].bLearnBakground = true;
+				camCaptureBackground[i] = false;
+			}
+			camera[i].threshold = camThreshold[i];
+			if(camRefresh[i])
+				camera[i].update();
 		}
 	}
 		
@@ -416,8 +555,69 @@ void testApp::update(){
 		}
 	}
 	
-	//Walls
+	//World Walls
 	
+	if(worldWalls){
+		if(!worldWallsState) {
+			dynamicsWorld->addRigidBody(leftWallRigidBody);
+			dynamicsWorld->addRigidBody(rightWallRigidBody);
+			worldWallsState = true;
+		}
+	} else {
+		if(worldWallsState){
+			dynamicsWorld->removeRigidBody(leftWallRigidBody);
+			dynamicsWorld->removeRigidBody(rightWallRigidBody);
+			worldWallsState = false;
+		}
+	}
+	
+	// Text 1 Walls
+	
+	if(textWalls[0]){
+		if(!textWallsState[0]){
+			dynamicsWorld->addRigidBody(textWall1LeftRigidBody);
+			dynamicsWorld->addRigidBody(textWall1RightRigidBody);
+			textWallsState[0] = true;
+		}
+	} else {
+		if(textWallsState[0]){
+			dynamicsWorld->removeRigidBody(textWall1LeftRigidBody);
+			dynamicsWorld->removeRigidBody(textWall1RightRigidBody);
+			textWallsState[0] = false;
+		}
+	}
+	
+	// Text 2 Walls
+	
+	if(textWalls[1]){
+		if(!textWallsState[1]){
+			dynamicsWorld->addRigidBody(textWall2LeftRigidBody);
+			dynamicsWorld->addRigidBody(textWall2RightRigidBody);
+			textWallsState[1] = true;
+		}
+	} else {
+		if(textWallsState[1]){
+			dynamicsWorld->removeRigidBody(textWall2LeftRigidBody);
+			dynamicsWorld->removeRigidBody(textWall2RightRigidBody);
+			textWallsState[1] = false;
+		}
+	}
+	
+	// Text 3 Walls
+	
+	if(textWalls[2]){
+		if(!textWallsState[2]){
+			dynamicsWorld->addRigidBody(textWall3LeftRigidBody);
+			dynamicsWorld->addRigidBody(textWall3RightRigidBody);
+			textWallsState[2] = true;
+		}
+	} else {
+		if(textWallsState[2]){
+			dynamicsWorld->removeRigidBody(textWall3LeftRigidBody);
+			dynamicsWorld->removeRigidBody(textWall3RightRigidBody);
+			textWallsState[2] = false;
+		}
+	}
 	
 	// Silhouette 1
 	
@@ -438,17 +638,20 @@ void testApp::update(){
 	btRigidBody* silhouette1 = new btRigidBody(silhouette1RigidBodyCI);
 	//silhouette->setGravity(btVector3(0.,0.,0.));
 	//silhouette->setDamping(0.99,0.9);
+	silhouette1->setRestitution(0.0);
 	silhouette1->setCollisionFlags( silhouette1->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	silhouette1->setActivationState(DISABLE_DEACTIVATION);
-	dynamicsWorld->addRigidBody(silhouette1);
-	
+	if(camEnable[0]){
+		dynamicsWorld->addRigidBody(silhouette1);
+	}
+
 	// Silhouette 2
-	
+
 	btConvexHullShape * silhouette2Shape = new btConvexHullShape();
 	if(camera[1].contourFinder.nBlobs > 0){
 		for(int i=0;i<camera[1].simplify->numPoints;i++){
-			silhouette2Shape->addPoint(btVector3(camera[1].simplify->points[i].x*ofGetHeight()/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
-			silhouette2Shape->addPoint(btVector3(camera[1].simplify->points[i].x*ofGetHeight()/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
+			silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].simplify->points[i].x*ofGetHeight()))/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
+			silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].simplify->points[i].x*ofGetHeight()))/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
 			//cout<<camera[1].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
 		}
 	}
@@ -461,19 +664,20 @@ void testApp::update(){
 	btRigidBody* silhouette2 = new btRigidBody(silhouette2RigidBodyCI);
 	//silhouette->setGravity(btVector3(0.,0.,0.));
 	//silhouette->setDamping(0.99,0.9);
+	silhouette2->setRestitution(0.0);
 	silhouette2->setCollisionFlags( silhouette2->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	silhouette2->setActivationState(DISABLE_DEACTIVATION);
-	
-	dynamicsWorld->addRigidBody(silhouette2);
-	
+	if(camEnable[1]){
+		dynamicsWorld->addRigidBody(silhouette2);
+	}
 	
 	// Silhouette 3
 	
 	btConvexHullShape * silhouette3Shape = new btConvexHullShape();
 	if(camera[2].contourFinder.nBlobs > 0){
 		for(int i=0;i<camera[2].simplify->numPoints;i++){
-			silhouette3Shape->addPoint(btVector3(camera[2].simplify->points[i].x*ofGetHeight()/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
-			silhouette3Shape->addPoint(btVector3(camera[2].simplify->points[i].x*ofGetHeight()/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
+			silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].simplify->points[i].x*ofGetHeight()))/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
+			silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].simplify->points[i].x*ofGetHeight()))/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
 			//cout<<camera[2].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
 		}
 	}
@@ -486,10 +690,12 @@ void testApp::update(){
 	btRigidBody* silhouette3 = new btRigidBody(silhouette3RigidBodyCI);
 	//silhouette->setGravity(btVector3(0.,0.,0.));
 	//silhouette->setDamping(0.99,0.9);
+	silhouette3->setRestitution(0.0);
 	silhouette3->setCollisionFlags( silhouette3->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	silhouette3->setActivationState(DISABLE_DEACTIVATION);
-	
-	dynamicsWorld->addRigidBody(silhouette3);
+	if(camEnable[2]){
+		dynamicsWorld->addRigidBody(silhouette3);
+	}
 	
 	//Collider
 
@@ -511,21 +717,18 @@ void testApp::update(){
 	col_pos = col_trans.getOrigin();
 
 	ofxPoint2f d[4];
-#pragma omp parallel for 
 	for(int i=0;i<4;i++){
 		d[i].x = (float)cameraCorners[0][i].x;
 		d[i].y = (float)cameraCorners[0][i].y;
 	}
 	camera[0].updateWarp(d);
 	
-#pragma omp parallel for 
 	for(int i=0;i<4;i++){
 		d[i].x = (float)cameraCorners[1][i].x;
 		d[i].y = (float)cameraCorners[1][i].y;
 	}
 	camera[1].updateWarp(d);
 
-#pragma omp parallel for 
 	for(int i=0;i<4;i++){
 		d[i].x = (float)cameraCorners[2][i].x;
 		d[i].y = (float)cameraCorners[2][i].y;
@@ -537,6 +740,7 @@ void testApp::update(){
 	
 	textUpdate();
 	
+	// Walls
 	 
 #ifdef FIXED_STEP
 	dynamicsWorld->stepSimulation(1.0f/60.f,0);
@@ -569,13 +773,74 @@ void testApp::update(){
 	 }
 	 
 #endif
+	
+	// Rain
 		
+	if(rainEnable) {
+		rainDropCount = rainDrops.size();
+		if(rainDropCount > 200){
+			rainDrops.erase(rainDrops.begin());
+		}
+		if(rainTrigger){
+			float randomFactor = ofRandom(0.5, 1.0);
+			Text drop = Text();
+			drop.setText("§");
+			if(rainDropCount%3 == 0){
+				drop.setFont(&rainFontSmall);
+				drop.setLineHeight(rainDropSize*0.75);
+				drop.setWidth(rainDropSize*0.5*0.75);
+			} else if ((rainDropCount+1)%3 == 0){
+				drop.setFont(&rainFontMedium);
+				drop.setLineHeight(rainDropSize);
+				drop.setWidth(rainDropSize*0.5);
+			} else if ((rainDropCount+2)%3 == 0){
+				drop.setFont(&rainFontBig);
+				drop.setLineHeight(rainDropSize*1.25);
+				drop.setWidth(rainDropSize*0.5*1.25);
+			}
+			drop.setWordBlocks(true);
+			drop.setDepth(50);
+			drop.constructText(false);
+			drop.translate(sin(ofRandom(0.0,1.0))*(3*ofGetHeight()),-rainDropSize*3,0);
+			drop.setFriction(0.1);
+			drop.setDamping(0.20);
+			drop.setMass(0.25);
+			drop.setInertia(ofRandom(0,20),ofRandom(15,20),0);
+			drop.setRestitution(0.0);
+			drop.setupBullet(dynamicsWorld, true);
+			rainDrops.push_back(drop);
+		}
+#pragma omp parallel
+		{
+#pragma omp num_treads(24)
+#pragma omp for
+			for(int i = 0; i < rainDrops.size(); i++){
+				rainDrops[i].setWorldWrapX(worldWrapX);
+				rainDrops[i].setWorldWrapY(worldWrapY);
+				rainDrops[i].setWorldConstrainZ(worldConstrainZ);
+				rainDrops[i].updateBullet(false);
+			}
+		}
+	} else {
+		yOffset = 0;
+		for(int i = 0; i < rainDrops.size(); i++){
+			rainDrops.at(0).clear();
+		}
+		rainDrops.clear();
+	}
+	rainTrigger = false;
+	
 	// Silhouette
 	
+	if(camEnable[0]){
 	dynamicsWorld->removeRigidBody(silhouette1);
+	}
+	if(camEnable[1]){
 	dynamicsWorld->removeRigidBody(silhouette2);
+	}
+	if(camEnable[2]){
 	dynamicsWorld->removeRigidBody(silhouette3);
-	
+	}
 	delete silhouette1;
 	delete silhouette2;
 	delete silhouette3;
@@ -584,40 +849,37 @@ void testApp::update(){
 	delete silhouette2Shape;
 	delete silhouette3Shape;
 	
+	//Update shared variables
+	for(int i=0;i<sharedVariables.size();i++){
+		sharedVariables[i].update(&sender);
+	}
+		
 }
 
 
 void testApp::textUpdate(){
 	
 	for (int i=0;i<3;i++){
+		if(!textScaffolding[i]){
+			texts[i].removeScaffolding();
+		}
 		if(textState[i] == TEXT_STATE_RESET){
+			texts[i].clear();
 			texts[i].clearBullet();
 			texts[i] = Text();
 			texts[i].setText("");
 			fonts[i] = TextFontHolder("ApexSerif-Book.otf", textFontSize[i]);
+			fonts[i].setLineHeight(textFontSize[i]*1.3);
 			texts[i].setFont(&fonts[i]);
-			texts[i].setWordBlocks(true);
+			texts[i].setLineHeight(textFontSize[i]*1.3);
+			texts[i].setWordBlocks(wordBlocks[i]);
 			textState[i] = TEXT_STATE_REFRESH;
-		}
-		if(!textAnimate[i]){
-			if(textState[i] == TEXT_STATE_PHYSICS_ENABLED){
-				textState[i] = TEXT_STATE_PHYSICS_DISABLE;
-			}
-			if(textRefresh[i] && textState[i] == TEXT_STATE_REFRESHED){
-				textState[i] = TEXT_STATE_REFRESH;
-			}
-			if(textRefresh[i] && textState[i] == TEXT_STATE_PHYSICS_DISABLED){
-				textState[i] = TEXT_STATE_REFRESH;
-			}
-		} else {
-			if(textState[i] != TEXT_STATE_PHYSICS_ENABLED){
-				textState[i] = TEXT_STATE_PHYSICS_ENABLE;
-			}
 		}
 		if(textState[i] == TEXT_STATE_CLEAR){
 			texts[i].clear();
 			texts[i].setText("");
-			texts[i].setWordBlocks(true);
+			texts[i].setWordBlocks(wordBlocks[i]);
+			texts[i].setLineHeight(textFontSize[i]*1.3);
 			textState[i] = TEXT_STATE_CLEARED;
 		}
 		if(textState[i] == TEXT_STATE_REFRESH){
@@ -625,17 +887,19 @@ void testApp::textUpdate(){
 			if(texts[i].getFontSize() != textFontSize[i] ||
 			   texts[i].getText() != textStrings[i] ||
 			   texts[i].getDepth() != textDepth[i] ||
-			   texts[i].getWidth() != textWidth[i])
+			   texts[i].getWidth() != textWidth[i] ||
+			   texts[i].getWordBlocks() != wordBlocks[i] )
 			{
 				texts[i].clear();
-				fonts[i].setFontSize(textFontSize[i]);
-				texts[i].setFont(&fonts[i]);
 				texts[i].setText(textStrings[i]);
-				texts[i].setWordBlocks(true);
+				texts[i].setFont(&fonts[i]);
+				fonts[i].setLineHeight(textFontSize[i]*1.3);
+				fonts[i].setFontSize(textFontSize[i]);
+				//texts[i].setLineHeight(textFontSize[i]*1.3);
+				texts[i].setWordBlocks(wordBlocks[i]);
 				texts[i].setDepth(textDepth[i]);
 				texts[i].setWidth(textWidth[i]);
-				texts[i].setLineHeight(textFontSize[i]*1.3);
-				texts[i].constructText();
+				texts[i].constructText(true);
 			}
 			if(fabs(texts[i].getTranslate().x - ((i*ofGetHeight())+textPosition[i].x)) > 0.05 ||
 			   fabs(texts[i].getTranslate().y - textPosition[i].y) > 0.05 ||
@@ -643,14 +907,29 @@ void testApp::textUpdate(){
 			{
 				texts[i].translate((i*ofGetHeight())+textPosition[i].x,textPosition[i].y,0);
 			}
+			if(textScaffolding[i]){
+				texts[i].createScaffolding();
+			}
 			textState[i] = TEXT_STATE_REFRESHED;
+		}
+		if(textRefresh[i] && (textState[i] == TEXT_STATE_REFRESHED || textState[i] == TEXT_STATE_CLEARED)){
+				textState[i] = TEXT_STATE_REFRESH;
+		}
+		if(!textAnimate[i]){
+			if(textState[i] == TEXT_STATE_PHYSICS_ENABLED){
+				textState[i] = TEXT_STATE_PHYSICS_DISABLE;
+			}
+		} else {
+			if(textState[i] != TEXT_STATE_PHYSICS_ENABLED){
+				textState[i] = TEXT_STATE_PHYSICS_ENABLE;
+			}
 		}
 		if(textState[i] == TEXT_STATE_PHYSICS_ENABLE){
 			texts[i].setFriction(textFriction[i]);
 			texts[i].setDamping(textDamping[i]);
 			texts[i].setMass(textMass[i]);
 			texts[i].setRestitution(textRestitution[i]);
-			texts[i].setupBullet(dynamicsWorld);
+			texts[i].setupBullet(dynamicsWorld, true);
 			textState[i] = TEXT_STATE_PHYSICS_ENABLED;
 		}
 		if(textState[i] == TEXT_STATE_PHYSICS_ENABLED){
@@ -660,10 +939,10 @@ void testApp::textUpdate(){
 			texts[i].setWorldWrapX(worldWrapX);
 			texts[i].setWorldWrapY(worldWrapY);
 			texts[i].setWorldConstrainZ(worldConstrainZ);
-			texts[i].updateBullet();
+			texts[i].updateBullet(true);
 		}
 		if(textState[i] == TEXT_STATE_PHYSICS_DISABLE){
-			texts[i].clearBullet();
+			texts[i].pauseBullet();
 			textState[i] = TEXT_STATE_PHYSICS_DISABLED;
 		}
 	}
@@ -672,6 +951,11 @@ void testApp::textUpdate(){
 //--------------------------------------------------------------
 
 void testApp::draw(){
+	
+	if(rainEnable && rainDrops.size() > 100)
+		yOffset-=1.33;
+	if(!rainEnable)
+		yOffset = 0.0;		
 	
 	if(showStatus){
 		if(statusOffset <1.0)
@@ -713,6 +997,10 @@ void testApp::draw(){
 	{ 1.0, 0.0, 0.0, 0.0 }; // klipper x < 0
 	double eqnGtX[] =
 	{ -1.0, 0.0, 0.0, 0.0 }; //klipper x > 0
+	double eqnLtY[] =
+	{ 0.0, 1.0, 0.0, 0.0 }; // klipper x < 0
+	double eqnGtY[] =
+	{ 0.0, -1.0, 0.0, 0.0 }; //klipper x > 0
 	
 	glMatrixMode(GL_PROJECTION); 
 	glLoadIdentity(); 
@@ -774,6 +1062,8 @@ void testApp::draw(){
 	cvReleaseMat( &src_mat );
 	cvReleaseMat( &dst_mat );
 
+	glClipPlane(GL_CLIP_PLANE2, eqnLtY);
+	glEnable(GL_CLIP_PLANE2);
 	glClipPlane(GL_CLIP_PLANE3, eqnLtX);
 	glEnable(GL_CLIP_PLANE3);
 	
@@ -782,9 +1072,11 @@ void testApp::draw(){
 	glClipPlane(GL_CLIP_PLANE4, eqnGtX);
 	glEnable(GL_CLIP_PLANE4);
 	glPopMatrix();
-	
+
+	glTranslatef(0.0, 	yOffset, 0);
 	drawViewport();
 
+	glDisable(GL_CLIP_PLANE2);
 	glDisable(GL_CLIP_PLANE3);
 	glDisable(GL_CLIP_PLANE4);
 	
@@ -847,6 +1139,8 @@ void testApp::draw(){
 	cvReleaseMat( &src_mat );
 	cvReleaseMat( &dst_mat );
 	
+	glClipPlane(GL_CLIP_PLANE2, eqnLtY);
+	glEnable(GL_CLIP_PLANE2);
 	glClipPlane(GL_CLIP_PLANE3, eqnLtX);
 	glEnable(GL_CLIP_PLANE3);
 	
@@ -856,10 +1150,11 @@ void testApp::draw(){
 	glEnable(GL_CLIP_PLANE4);
 	glPopMatrix();
 	
-	glTranslatef(-ofGetHeight(), 0, 0);
+	glTranslatef(-ofGetHeight(), yOffset, 0);
 
 	drawViewport();
 	
+	glDisable(GL_CLIP_PLANE2);
 	glDisable(GL_CLIP_PLANE3);
 	glDisable(GL_CLIP_PLANE4);
 	
@@ -922,6 +1217,8 @@ void testApp::draw(){
 	cvReleaseMat( &src_mat );
 	cvReleaseMat( &dst_mat );
 	
+	glClipPlane(GL_CLIP_PLANE2, eqnLtY);
+	glEnable(GL_CLIP_PLANE2);
 	glClipPlane(GL_CLIP_PLANE3, eqnLtX);
 	glEnable(GL_CLIP_PLANE3);
 
@@ -931,10 +1228,11 @@ void testApp::draw(){
 		glEnable(GL_CLIP_PLANE4);
 	glPopMatrix();
 	
-	glTranslatef(-ofGetHeight()*2.0, 0, 0);
+	glTranslatef(-ofGetHeight()*2.0, yOffset, 0);
 
 	drawViewport();
 
+	glDisable(GL_CLIP_PLANE2);
 	glDisable(GL_CLIP_PLANE3);
 	glDisable(GL_CLIP_PLANE4);
 	
@@ -1064,12 +1362,34 @@ void testApp::drawViewport(){
 	
 	//Draw Letters
 
+	ofEnableAlphaBlending();
 	for(int i=0;i<3;i++){
 		ofSetColor(textColorR[i]*255, textColorG[i]*255, textColorB[i]*255, textColorA[i]*255);
 		texts[i].drawText();
+		//texts[i].drawBricks();
+		
 	}
 	
-
+	/**
+	for(int i=0;i<3;i++){
+		ofSetColor(blobColorR[i]*255, blobColorG[i]*255, blobColorB[i]*255, blobColorA[i]*255);
+		
+		
+	}
+	
+	 **/
+	
+	// Draw Rain
+	
+	for(int i = 0; i < rainDrops.size(); i++){
+		ofSetColor(255,255,255,255);
+		rainDrops[i].drawText();
+		//rainDrops[i].drawBricks();
+	}
+	if(rainEnable){
+		ofRect(0.0,(ofGetWidth()/3.0)+(rainDrops.size()>100?-20.0:-(rainDrops.size()-80.0)),ofGetHeight()*3,ofGetWidth());
+	}
+	
 	ofSetColor(255, 255, 255);
 
 	//Collider
@@ -1127,7 +1447,7 @@ void testApp::drawViewport(){
 
 		float textOffset = ofGetHeight()-20;
 
-		if(showCams){
+		if(showStatusCams){
 
 		textOffset = ofGetHeight()-((20+(((80*(4/3.0))+10)*3)));
 
@@ -1194,27 +1514,33 @@ void testApp::drawViewport(){
 			glPushMatrix();
 			glTranslatef(textOffset-(80*(4/3.0)), 0, 0);
 			statusFontBold.drawString("Screen # "+ofToString(i+1),0,0);
-			glTranslatef(0, 40, 0);
+			glTranslatef(0, 27, 0);
 			statusFont.drawString("Bullet Bodies:",0,0);
 			glTranslatef(0, 13, 0);
 			statusFont.drawString("Text Lines:",0,0);
 			glTranslatef(0, 13, 0);
 			statusFont.drawString("Blobs:",0,0);
+			glTranslatef(0, 13, 0);
+			statusFont.drawString("Threshold:",0,0);
 			glPopMatrix();
 			ofSetColor(255, 255, 255, 255*statusOffset);
 			glPushMatrix();
-			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(texts[i].getNumberBodies())), 40, 0);
+			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(texts[i].getNumberBodies())), 27, 0);
 			statusFontBold.drawString(ofToString(texts[i].getNumberBodies()),0,0);
 			glPopMatrix();
 			glPushMatrix();
-			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(texts[i].getNumberLines())), 53, 0);
+			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(texts[i].getNumberLines())), 40, 0);
 			statusFontBold.drawString(ofToString(texts[i].getNumberLines()),0,0);
 			glPopMatrix();
 			glPushMatrix();
-			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(camera[i].contourFinder.nBlobs)), 66, 0);
+			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(camera[i].contourFinder.nBlobs)), 53, 0);
 			statusFontBold.drawString(ofToString(camera[i].contourFinder.nBlobs ),0,0);
 			glPopMatrix();
-		glPopMatrix();
+			glPushMatrix();
+			glTranslatef(textOffset-statusFontBold.getCharSetWidth(ofToString(camera[i].threshold)), 66, 0);
+			statusFontBold.drawString(ofToString(camera[i].threshold ),0,0);
+			glPopMatrix();
+			glPopMatrix();
 		}
 	glPopMatrix();
 	}
@@ -1262,21 +1588,34 @@ void testApp::keyPressed  (int key){
 	switch (key){
 		case 'a':
 			camera[0].simplify->damp = 0;
+			camera[1].simplify->damp = 0;
+			camera[2].simplify->damp = 0;
 			break;
 		case 'z':
 			camera[0].simplify->damp = 0.09;
+			camera[1].simplify->damp = 0.09;
+			camera[2].simplify->damp = 0.09;
 			break;
 		case 'b':
 			camera[0].bLearnBakground = true;
+			camera[1].bLearnBakground = true;
+			camera[2].bLearnBakground = true;
 			break;
 		case '+':
 			camera[0].threshold ++;
+			camera[1].threshold ++;
+			camera[2].threshold ++;
 			if (camera[0].threshold > 255) camera[0].threshold = 255;
-			cout<<camera[0].threshold<<endl;
+			if (camera[1].threshold > 255) camera[1].threshold = 255;
+			if (camera[2].threshold > 255) camera[2].threshold = 255;
 			break;
 		case '-':
 			camera[0].threshold --;
+			camera[1].threshold --;
+			camera[2].threshold --;
 			if (camera[0].threshold < 0) camera[0].threshold = 0;
+			if (camera[1].threshold < 0) camera[1].threshold = 0;
+			if (camera[2].threshold < 0) camera[2].threshold = 0;
 			cout<<camera[0].threshold<<endl;
 			break;
 		case 'v':
@@ -1285,7 +1624,7 @@ void testApp::keyPressed  (int key){
 			ofHideCursor();
 			break;
 		case 'c':
-			showCams = !showCams;
+			showStatusCams = !showStatusCams;
 			break;
 		case 'p':
 			showPerspective = !showPerspective;
@@ -1294,7 +1633,10 @@ void testApp::keyPressed  (int key){
 			showStatus = !showStatus;
 			break;
 		case 'r':
-//			text->clear();
+			rainEnable = !rainEnable;
+			break;
+		case 'd':
+			rainTrigger = true;
 			break;
 	}
 }

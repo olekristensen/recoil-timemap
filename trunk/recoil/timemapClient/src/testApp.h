@@ -79,6 +79,14 @@ public:
 	ofTexture trackerTexture;
 	ofxCvColorImage		colorImg;
 	
+	ofVideoGrabber vidLeft;
+	ofTexture leftTexture;
+	ofxCvColorImage	colorImgLeft;
+	
+	ofVideoGrabber vidRight;
+	ofTexture rihgtTexture;
+	ofxCvColorImage	colorImgRight;
+	
 	btDiscreteDynamicsWorld * dynamicsWorld;
 	btDefaultCollisionConfiguration* collisionConfiguration;
 	btBroadphaseInterface* broadphase;
@@ -88,7 +96,9 @@ public:
 	class	btThreadSupportInterface*		threadSupportCollision;
 	class	btThreadSupportInterface*		threadSupportSolver;
 		
-	btRigidBody * groundRigidBody;	
+	btRigidBody * groundRigidBody;
+	btRigidBody * leftWallRigidBody;
+	btRigidBody * rightWallRigidBody;
 	vector<btRigidBody*> bodies;
 	
 	btRigidBody *collider;
@@ -120,12 +130,14 @@ public:
 	bool worldConstrainZ;
 	bool worldGround;
 	bool worldGroundState;
+	bool worldWalls;
+	bool worldWallsState;
 	
 	int cornerWarperIndex;
 	
 	bool showPerspective;
 	bool showStatus;
-	bool showCams;
+	bool showStatusCams;
 
 	ofxLight light1; 
 	bool bSmoothLight;
@@ -173,7 +185,24 @@ public:
 	float	textRestitution[3];
 	bool	textRefresh[3];
 	bool	textAnimate[3];
+	bool	wordBlocks[3];
+	bool	textWalls[3];
+	bool	textWallsState[3];
 	bool	textScaffolding[3];
+	
+	bool	camEnable[3];
+	bool	camRefresh[3];
+	bool	camCaptureBackground[3];
+	bool	camDebug[3];
+	int		camThreshold[3];
+	
+	float	blobColorR[3];
+	float	blobColorG[3];
+	float	blobColorB[3];
+	float	blobColorA[3];
+	
+	float blobDamping[3];
+	float blobExpansion[3];
 	
 	float statusOffset;
 	float perspectiveOffset;
@@ -182,11 +211,31 @@ public:
 	ofImage testCard2;
 	ofImage testCard3;
 	
+	btRigidBody * textWall1LeftRigidBody;
+	btRigidBody * textWall1RightRigidBody;
+	btRigidBody * textWall2LeftRigidBody;
+	btRigidBody * textWall2RightRigidBody;
+	btRigidBody * textWall3LeftRigidBody;
+	btRigidBody * textWall3RightRigidBody;
 	
 	TextFontHolder  statusFont;
 	TextFontHolder  statusFontBold;
+	
+	float frameRate;
 
+	bool rainEnable;
+	bool rainTrigger;
 
+	vector<Text> rainDrops;
+
+	int rainDropCount;
+	
+	TextFontHolder rainFontSmall;
+	TextFontHolder rainFontMedium;
+	TextFontHolder rainFontBig;
+	
+	float yOffset;
+	
 };
 
 #endif

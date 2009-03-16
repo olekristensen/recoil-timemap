@@ -20,10 +20,12 @@ class Text : public TextObject {
 public:
 	vector<Word> words;
 	vector<Letter> spacers;
+	vector<Letter> scaffolding;
 	vector<vector<Word*> > lines;
 	
 	Text(){
 		wordBlocks = false;
+		hasBeenAnimated = false;
 		numberLines = 0;
 		depth = 100;
 		width = 400;
@@ -31,6 +33,8 @@ public:
 		restitution = 0.4;
 		damping = 0.0;
 		mass = 1.0;
+		inertiaX = inertiaY = inertiaZ = 0.0;
+		bulletResting = false;
 	}
 	
 	void setWordBlocks(bool _wordBlocks){
@@ -41,11 +45,16 @@ public:
 		return wordBlocks;
 	}
 	
-	void constructText(){
+	void constructText(bool useSpacers){
+		hasBeenAnimated = false;
 		cursor = true;
+		bulletResting = false;
+
 		createText(text, font);
 		positionText();
-		createSpacers();
+		if(useSpacers){
+			createSpacers();
+		}
 	}
 
 
@@ -84,20 +93,24 @@ public:
 		lines.clear();
 		lines.push_back(vector<Word*>());
 		float countX=0.0, countY=0.0,countZ=0.0;
+		int wordsInLine = 0;
 		for(int i=0;i< words.size(); i++){
-			if((countX)+words[i].getWidth() > width){
+			if((countX)+words[i].getWidth() > width && wordsInLine > 0){
 				countX = 0.0;
 				countY += words[i].letters[0].getFont()->getCalculatedHeight();
 				lines.push_back(vector<Word*>());
+				wordsInLine = 0;
 			}
 			words[i].setPosition(countX, countY, countZ);
 			lines[lines.size()-1].push_back(&words[i]);
+			wordsInLine++;
 			countX += words[i].getWidth();
 			for(int j=0;j<words[i].getNumberLetters();j++){
 				if(words[i].letters[j].getWLetter() == L"\n"){
 					countX = 0.0;
 					countY += words[i].letters[0].getFont()->getCalculatedHeight();
 					lines.push_back(vector<Word*>());
+					wordsInLine = 0;
 				}
 			}
 		}
@@ -107,26 +120,73 @@ public:
 		for(int i=0;i<getNumberLines();i++){
 		//	spacers.push_back(Letter(" ", font, depth, width - getLineWidth(0)));
 			//Letter l = Letter(" ", font, depth, width - getLineWidth(0));
-			int numberSpaces = (int)((width - getLineWidth(i))/(float)font->getWidth(L"   "));
+			int numberSpaces = (int)((width - getLineWidth(i))/(float)font->getWidth(L"     "));
+			//cout << numberSpaces << endl;
 			float w;
 			if(numberSpaces == 0){
 				numberSpaces = 1;
-				w = fmodf((width - getLineWidth(i)),font->getWidth(L"   "));
+				w = fmodf((width - getLineWidth(i)),font->getWidth(L"     "));
+			} else if (numberSpaces < 0){
+				numberSpaces = 0;
 			} else {
-				w = font->getWidth(L"   ")+fmodf((width - getLineWidth(i)),font->getWidth(L"   "))/(float)numberSpaces;
+				w = font->getWidth(L"     ")+fmodf((width - getLineWidth(i)),font->getWidth(L"     "))/(float)numberSpaces;
 			}
-			//cout<<((int)(width - getLineWidth(i))%(int)font->getWidth("p"))/(float)numberSpaces<<endl;
 			for(int u=0;u<numberSpaces;u++){
-				Letter l = Letter(L"   ", font, depth, w);
-				l.setPosition(getLineWidth(i)+u*w+w/2.0, lines[i][0]->letters[0].getLoc().y, 0);
+				Letter l = Letter(L"     ", font, depth, w, 0);
+				l.setPosition(getLineWidth(i)+(u*w)+(w/2.0), (font->getCalculatedHeight()*(float)i)+(font->getCalculatedHeight()/2.0), 0);
 				spacers.push_back(l);
 			}
 		}
 	}
 	
+	void createScaffolding() {
+		scaffoldingOn = true;
+		if(!hasBeenAnimated){
+		scaffolding.clear();
+		float screenHeight = ofGetWidth()/3.0;
+		float height = getHeight();
+		float y = getTranslate().y;
+		float x = getTranslate().x;
+		int numberOfLines = (int)((screenHeight - (height+y))/(float)font->getCalculatedHeight());
+		if(numberOfLines == 0) 
+			numberOfLines = 1;
+		int numberSpaces = (int)(width/(float)font->getWidth(L"                    "));
+		float w = font->getWidth(L"                    ")+fmodf(width,font->getWidth(L"                    "))/(float)numberSpaces;
+		float h = ((screenHeight - (height+y))/(float)numberOfLines);
+		for(int i=0;i<numberOfLines;i++){
+			for(int u=0;u<numberSpaces;u++){
+				if(i%2 == 0) {
+					Letter l = Letter(L"                    ", font, depth, w, h);
+					l.setPosition((u*w)+(w/2.0)+x,height+(h*(float)i)+(h/2.0)+y, 0);
+					scaffolding.push_back(l);
+				} else {
+					if(u == 0){
+						Letter l = Letter(L"          ", font, depth, w/2.0, h);
+						l.setPosition((u*w)+(w/4.0)+x,height+(h*(float)i)+(h/2.0)+y, 0);
+						scaffolding.push_back(l);
+						Letter l2 = Letter(L"          ", font, depth, w/2.0, h);
+						l2.setPosition((((numberSpaces)*w)+x)-(w/4.0),height+(h*(float)i)+(h/2.0)+y, 0);
+						scaffolding.push_back(l2);
+					} else {
+						Letter l = Letter(L"                    ", font, depth, w, h);
+						l.setPosition((u*w)+x,height+(h*(float)i)+(h/2.0)+y, 0);
+						scaffolding.push_back(l);
+					}
+				}
+			}
+		}
+		}
+	}
+	
+	void removeScaffolding(){
+		scaffoldingOn = false;
+	}
+	
 	void translate(float _x, float _y, float _z){
-		for(int i=0;i<getNumberLetters(); i++){
-			getLetter(i)->translate(_x, _y, _z);
+		if(!hasBeenAnimated){
+			for(int i=0;i<getNumberLetters(); i++){
+				getLetter(i)->translate(_x, _y, _z);
+			}
 		}
 	}
 
@@ -142,6 +202,11 @@ public:
 			
 			spacers[i].drawText();
 		}
+		for(int i=0;i<scaffolding.size(); i++){
+			
+			scaffolding[i].drawText();
+		}
+		
 		/**
 		if(cursor){
 			int cursorPos = 0;
@@ -169,6 +234,10 @@ public:
 			
 			spacers[i].drawBricks();
 		}
+		for(int i=0;i<scaffolding.size(); i++){
+			
+			scaffolding[i].drawBricks();
+		}
 	}
 	
 	void setLineHeight(float lheight){
@@ -189,6 +258,7 @@ public:
 			r+= words[i].getNumberLetters();
 		}
 		r += spacers.size();
+		r += scaffolding.size();
 		return r;
 	}
 	
@@ -197,7 +267,7 @@ public:
 		int wordCounter = 0;
 		int letterCounter = 0;
 		Letter * r;
-		if(index < getNumberLetters()- spacers.size()){
+		if(index < getNumberLetters()- (spacers.size()+scaffolding.size())){
 			while(counter<=index){
 				r = &words[wordCounter].letters[letterCounter];
 				counter ++;
@@ -207,9 +277,10 @@ public:
 					letterCounter = 0;
 				}
 			}
+		} else if (index < getNumberLetters() - scaffolding.size()) {
+			r = &spacers[index-(getNumberLetters()- (spacers.size()+scaffolding.size()))];
 		} else {
-//			cout<<(index-getNumberLetters())- (int)spacers.size() -1<<endl;
-			r = &spacers[index-(getNumberLetters()- spacers.size())];
+			r = &scaffolding[index-(getNumberLetters()-scaffolding.size())];
 		}
 		return r;
 	}
@@ -260,6 +331,12 @@ public:
 	
 	void setMass(float _mass){
 		mass = _mass;
+	}
+	
+	void setInertia(float _inertiaX, float _inertiaY, float _inertiaZ){
+		inertiaX = _inertiaX;
+		inertiaY = _inertiaY;
+		inertiaZ = _inertiaZ;
 	}
 	
 	float getMass(){
@@ -332,29 +409,39 @@ public:
 	}
 	
 	
-	void setupBullet(btDiscreteDynamicsWorld * _dynamicsWorld){
-		dynamicsWorld = _dynamicsWorld;
-		int numLetters = getNumberLetters();
-		for(int i=0; i<numLetters; i++){
-			Letter * l = getLetter(i);
-			btCollisionShape* fallShape = new btBoxShape(btVector3((getLetter(i)->getWidth()-1)/200.0,(l->getFont()->getCalculatedHeight()/200.0),getLetter(i)->getDepth()/200.0));
-			m_collisionShapes.push_back(fallShape);
-			btVector3 pos = btVector3(l->getLoc().x/100.0, l->getLoc().y/100.0, l->getLoc().z/100.0);
-			//cout<< l->getLoc().x/100.0 << ", "<<l->getLoc().y/100.0<<endl;
-			btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.1),pos));
-			btScalar btMass = mass;
-			btVector3 fallInertia(0,0,0);
-			fallShape->calculateLocalInertia(btMass,fallInertia);
-			btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(btMass,fallMotionState,fallShape,fallInertia);
-			l->bulletBodie = new btRigidBody(fallRigidBodyCI);
-			l->bulletBodie->setFriction(friction);
-			l->bulletBodie->setDamping(damping,damping);
-			l->bulletBodie->setRestitution(restitution);
-			l->bulletBodie->setActivationState(DISABLE_DEACTIVATION);
-			bodies.push_back(l->bulletBodie);
-			dynamicsWorld->addRigidBody(l->bulletBodie);
-			l->useBullet = true;
-		}	
+	void setupBullet(btDiscreteDynamicsWorld * _dynamicsWorld, bool disableDeactivation){
+		if(bodies.size() == 0){
+			hasBeenAnimated = true;
+			dynamicsWorld = _dynamicsWorld;
+			int numLetters = getNumberLetters();
+			for(int i=0; i<numLetters; i++){
+				Letter * l = getLetter(i);
+				btCollisionShape* fallShape = new btBoxShape(btVector3((getLetter(i)->getWidth()-1)/200.0,(getLetter(i)->getHeight()/200.0),getLetter(i)->getDepth()/200.0));
+				m_collisionShapes.push_back(fallShape);
+				btVector3 pos = btVector3(l->getLoc().x/100.0, l->getLoc().y/100.0, l->getLoc().z/100.0);
+				//cout<< l->getLoc().x/100.0 << ", "<<l->getLoc().y/100.0<<endl;
+				btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.1),pos));
+				btScalar btMass = mass;
+				btVector3 fallInertia(inertiaX,inertiaY,inertiaZ);
+				fallShape->calculateLocalInertia(btMass,fallInertia);
+				btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(btMass,fallMotionState,fallShape,fallInertia);
+				l->bulletBodie = new btRigidBody(fallRigidBodyCI);
+				l->bulletBodie->setFriction(friction);
+				l->bulletBodie->setDamping(damping,damping);
+				l->bulletBodie->setRestitution(restitution);
+				//l->bulletBodie->setCcdMotionThreshold(0.0001);
+				if(disableDeactivation){
+					l->bulletBodie->setActivationState(DISABLE_DEACTIVATION);
+				}
+				bodies.push_back(l->bulletBodie);
+				dynamicsWorld->addRigidBody(l->bulletBodie);
+				l->useBullet = true;
+			}
+		} else {
+			for( int i=0; i < bodies.size(); i++ ) {
+				dynamicsWorld->addRigidBody(bodies.at(i));
+			}
+		}
 	}
 	
 	void clear(){
@@ -362,15 +449,21 @@ public:
 		words.clear();
 		spacers.clear();
 		lines.clear();
+		scaffolding.clear();
 		numberLines = 0;
+	}
+	
+	btRigidBody * getBulletBody(int _index) {
+		return bodies[_index];
 	}
 	
 	void clearBullet(){
 		//cout << "bodies: " << bodies.size() << " collisionshapes: " << m_collisionShapes.size() << endl;
 		for (int i=0;i<m_collisionShapes.size();i++) {
 			btCollisionShape* shape = m_collisionShapes[i];
-			cout << "shape " << i << " * " << shape << endl;
-			delete shape;
+			if(shape){
+				delete shape;
+			}
 		}
 		m_collisionShapes.clear();
 		for( int i=0; i < bodies.size(); i++ ) {
@@ -378,17 +471,51 @@ public:
 		}
 		bodies.clear();
 	}
-		
-
-	void updateBullet(){
 	
+	void restBullet(){
+		bulletResting = true;
+	}
+	
+	bool getResting(){
+		return bulletResting;
+	}
+		
+	void pauseBullet(){
+		//cout << "bodies: " << bodies.size() << " collisionshapes: " << m_collisionShapes.size() << endl;
+		for( int i=0; i < bodies.size(); i++ ) {
+			dynamicsWorld->removeRigidBody(bodies.at(i));
+		}
+	}
+		
+	void updateBullet(bool multiTreaded){
+		if(scaffoldingOn == false){
+		int scaffoldingSize = scaffolding.size();
+		//cout << "getNumberLetters() = " << ofToString( getNumberLetters() ) << " spacers.size() = " << spacers.size() << " scaffolding.size() " << scaffoldingSize << endl;
+		Letter * scaffoldingBrick;
+		for(int i=0;i<scaffoldingSize;i++){
+			cout << i+(getNumberLetters()-scaffoldingSize) << endl;
+			if( m_collisionShapes.size() > 0){
+				btCollisionShape* shape = m_collisionShapes[i+(getNumberLetters()-scaffoldingSize)];
+				m_collisionShapes.remove(shape);
+				scaffoldingBrick = getLetter(i+(getNumberLetters()-scaffoldingSize));
+				dynamicsWorld->removeRigidBody(scaffoldingBrick->bulletBodie);
+			}
+		}
+		if(bodies.size() > 0){
+			bodies.erase( bodies.begin()+( (getNumberLetters()-scaffoldingSize)), bodies.end());
+		}
+		scaffolding.clear();
+		}
+		
+		if (hasBeenAnimated){
+			
 	int numLetters = getNumberLetters();
 	btTransform trans[numLetters];
 	btMotionState * motionState[numLetters];
 	btVector3 pos[numLetters];
 	btMatrix3x3 basis[numLetters];
 	vector<Letter*> l;
-		
+
 	for(int i=0; i<numLetters; i++){
 		motionState[i] = bodies[i]->getMotionState();
 		motionState[i]->getWorldTransform(trans[i]);
@@ -396,8 +523,10 @@ public:
 		pos[i] = trans[i].getOrigin();
 		basis[i] = trans[i].getBasis();	
 	}
-	
-#pragma omp parallel for 
+#pragma omp num_treads(12)
+#pragma omp parallel if(multiTreaded)
+			{
+#pragma omp for
 	for(int i=0; i<numLetters; i++){
 		l[i]->setPosition(pos[i].getX()*100, pos[i].getY()*100, pos[i].getZ()*100);
 		l[i]->matrix[0] = basis[i].getRow(0)[0];
@@ -426,7 +555,7 @@ public:
 			if(worldWrapY && pos[i].getY()*100 < -75.0){
 				pos[i].setY(0.5+(ofGetWidth()/3.0)/100.0);
 			}
-			if(worldWrapX && pos[i].getY()*100 > (ofGetWidth()/3.0)+75.0){
+			if(worldWrapY && pos[i].getY()*100 > (ofGetWidth()/3.0)+75.0){
 				pos[i].setY(-0.5);
 			}
 		}
@@ -440,6 +569,17 @@ public:
 		bodies[i]->setFriction(friction);
 		bodies[i]->setDamping(damping,damping);
 		bodies[i]->setRestitution(restitution);
+		if(bulletResting){
+			if(damping > 0.98) {
+				//bodies[i]->clearForces();
+				bodies[i]->setCollisionFlags( btCollisionObject::CF_KINEMATIC_OBJECT);
+			} else {
+				damping *= 1.05;
+			}
+
+		}
+	}
+		}
 	}
 }
 	
@@ -451,7 +591,8 @@ private:
 	float friction;
 	float restitution;
 	float damping;
-	float mass;
+	btScalar mass;
+	float inertiaX, inertiaY, inertiaZ;
 	TextFontHolder * font;
 	bool wordBlocks;
 	vector<btRigidBody*> bodies;
@@ -461,6 +602,9 @@ private:
 	bool worldWrapX;
 	bool worldWrapY;
 	bool worldConstrainZ;
+	bool hasBeenAnimated;
+	bool scaffoldingOn;
+	bool bulletResting;
 };
 
 #endif
