@@ -400,7 +400,7 @@ void testApp::bulletSetup(){
 	dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,broadphase,solver,collisionConfiguration);
 
 	dynamicsWorld->getSolverInfo().m_numIterations = 8;
-	dynamicsWorld->getSolverInfo().m_solverMode = SOLVER_SIMD+SOLVER_USE_WARMSTARTING;
+	dynamicsWorld->getSolverInfo().m_solverMode = SOLVER_USE_WARMSTARTING;
 	
 	dynamicsWorld->getDispatchInfo().m_enableSPU = true;
 	//dynamicsWorld->setGravity(btVector3(0,10,0));
@@ -1322,7 +1322,9 @@ void testApp::draw(){
 
 //--------------------------------------------------------------
 void testApp::drawViewport(){
-
+	
+	
+	
 	//** grids etc. for projection calibration
 
 	glEnable(GL_DEPTH_TEST);
