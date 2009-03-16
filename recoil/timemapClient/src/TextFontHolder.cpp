@@ -34,6 +34,7 @@ TextFontHolder::TextFontHolder(){
 TextFontHolder::TextFontHolder(string file, float _fontSize = 20){
 	bLoadedOk = false;
 	fontSize = _fontSize;
+	lineHeight = 1.3*_fontSize;
 	loadFont(file, _fontSize, true, true);
 }
 

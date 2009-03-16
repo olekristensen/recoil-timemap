@@ -15,10 +15,10 @@ public:
 	Word(wstring text, TextFontHolder * font, float depth, bool blockTogether = false){
 		if(!blockTogether){
 			for(int i=0; i<text.length(); i++){
-				letters.push_back(Letter(text.substr(i,1), font, depth,0, blockTogether));
+				letters.push_back(Letter(text.substr(i,1), font, depth,0,0, blockTogether));
 			}
 		} else {
-			letters.push_back(Letter(text, font, depth, 0, blockTogether));
+			letters.push_back(Letter(text, font, depth, 0,0, blockTogether));
 		}
 	}
 

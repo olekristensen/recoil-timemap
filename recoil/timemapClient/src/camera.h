@@ -49,7 +49,7 @@ public:
 		grayDiff.allocate(w,h);
 		c = cvCreateMat(size.x,size.y, CV_8UC1);
 		
-		threshold = 50;
+		threshold = 31;
 		bLearnBakground = true;
 		
 		
@@ -93,7 +93,6 @@ public:
 		grayDiff.threshold(threshold);		
 		contourFinder.findContours(grayDiff, 2, (size.x*size.y)/3, 10, true);	// find holes
 		if(contourFinder.nBlobs > 0){
-#pragma omp parallel for 
 			for(int j=0;j<contourFinder.nBlobs;j++){
 				for(int i=0;i<contourFinder.blobs[j].nPts;i++){
 					contourFinder.blobs[j].pts[i] = coordwarp.transform(contourFinder.blobs[j].pts[i].x/ (float)size.x,contourFinder.blobs[j].pts[i].y/ (float)size.y);
@@ -113,12 +112,12 @@ public:
 		glDisable(GL_DEPTH_TEST);
 		ofSetColor(255, 255, 255);
 		grayImage.draw(0,0,w,h);
-		/**
+		//**
 		 ofLine(dst[0].x*w, dst[0].y*h, dst[1].x*w, dst[1].y*h);
 		 ofLine(dst[2].x*w, dst[2].y*h, dst[1].x*w, dst[1].y*h);
 		 ofLine(dst[2].x*w, dst[2].y*h, dst[3].x*w, dst[3].y*h);
 		 ofLine(dst[0].x*w, dst[0].y*h, dst[3].x*w, dst[3].y*h);
-		 **/		
+		 //**/		
 		//	glTranslatef(-size.x, -size.y, 0);
 		//	for (int i = 0; i < contourFinder.nBlobs; i++){
 		//		ofSetColor(255, 0, 0);
@@ -127,17 +126,17 @@ public:
 		//	}
 		glPushMatrix();
 		
-		/* ---------------------------- draw the bounding rectangle
+		/** ---------------------------- draw the bounding rectangle
 		 ofSetColor(0xDD00CC);
 		 glPushMatrix();
-		 glTranslatef( x, y, 0.0 );
+		 glTranslatef( pos.x, pos.y, 0.0 );
 		 
 		 ofNoFill();
 		 for( int i=0; i<blobs.size(); i++ ) {
 		 ofRect( blobs[i].boundingRect.x, blobs[i].boundingRect.y,
 		 blobs[i].boundingRect.width, blobs[i].boundingRect.height );
 		 }
-		 */
+		 //**/
 		if(simplify->hasBlob){
 			
 			ofSetColor(128,128, 128);
@@ -146,7 +145,7 @@ public:
 				glVertex3f(simplify->points[i].x*w, simplify->points[i].y*h,0);
 			}
 			glEnd();
-			/*/// ---------------------------- draw the blobs
+			/**/// ---------------------------- draw the blobs
 			ofSetColor(0x00FFFF);
 			
 			for( int i=0; i<contourFinder.nBlobs; i++ ) {
@@ -217,7 +216,7 @@ public:
 					
 				}
 			}
-			 //*/
+			 //**/
 		}
 		
 
