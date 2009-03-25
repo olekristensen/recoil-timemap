@@ -2,6 +2,10 @@
 #include "ofxBlobSimplify.h"
 
 ofxBlobSimplify::ofxBlobSimplify(int num, int w, int h, float damping = 0.2){
+	mySpline2D.clear();
+	mySpline2D.reserve(num);
+	mySpline2D.setInterpolation(OFX_MSA_SPLINE_CUBIC);
+	mySpline2D.setUseDistance(true);
 	numPoints = num;
 	int o = w*2+h*2;
 	damp = damping;
@@ -25,7 +29,7 @@ void ofxBlobSimplify::update(vector <ofxCvBlob>* blobs){
 	int num = 1;
 	if(!hasBlob){
 		hasBlob = true;
-		num = 150;
+		num = 500;
 	}
 	for(int n=0;n<num;n++){
 		for(int i=0;i<points.size();i++){
@@ -104,20 +108,26 @@ void ofxBlobSimplify::update(vector <ofxCvBlob>* blobs){
 			
 		}
 		
+		//** DUNNO WHAT THIS ANGLE IS FOR
 		for(int i=0;i<points.size();i++){
 			ofxVec2f a = ofxVec2f(points[i].x,points[i].y);
 			ofxVec2f b = ofxVec2f(points[(i+1)%points.size()].x, points[(i+1)%points.size()].y);
 			ofxVec2f c = ofxVec2f(points[(i-1)%points.size()].x, points[(i-1)%points.size()].y);
 			ofxVec2f A = a - c;
-			ofxVec2f B = b - a;
+			ofxVec2f B = b - a;			
 			
 			float angle = A.angle(B);
-
 		}
+		// **/
 		
 	}
 	
-	
+	mySpline2D.clear();
+	for(int i=0;i<points.size();i++){
+		ofxVec2f a = ofxVec2f(points[i].x,points[i].y);
+		mySpline2D.push_back(a);
+	}
+		
 	//	points.clear();
 	for(int i=0;i<blob->nPts;i++){
 		//		points.push_back(ofxPoint2f(blob->pts[i].x, blob->pts[i].y));
