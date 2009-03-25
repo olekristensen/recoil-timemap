@@ -4,7 +4,7 @@
 
 const int maxProxies = 32766;
 const int maxOverlap = 65535;
-const int rainDropSize = 60;
+const int rainDropSize = 40;
 
 static inline btScalar	UnitRand(){
 	return(rand()/(btScalar)RAND_MAX);
@@ -20,11 +20,14 @@ static inline btVector3	Vector3Rand(){
 }
 
 //--------------------------------------------------------------
-void testApp::setup(){	 
+void testApp::setup(){
+	
+	printf("%i setup\n", ofGetFrameNum());    
 	
 	// General setup
 	
 	ofBackground(0, 0, 0);
+	ofSetBackgroundAuto(false);
 	ofSetFrameRate(30);
 	
 	// OSC Setup for sharedVariables
@@ -118,10 +121,12 @@ void testApp::setup(){
 		backgroundColorR[i] = 0.0;
 		backgroundColorG[i] = 0.0;
 		backgroundColorB[i] = 0.0;
+		backgroundColorA[i] = 1.0;
 		
 		sharedVariables.push_back(SharedVariable(&backgroundColorR[i],	"backgroundColorR"	+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&backgroundColorG[i],	"backgroundColorG"	+ofToString(i, 0)));
 		sharedVariables.push_back(SharedVariable(&backgroundColorB[i],	"backgroundColorB"	+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&backgroundColorA[i],	"backgroundColorA"	+ofToString(i, 0)));
 	
 		textState[i] = TEXT_STATE_RESET;
 		textAnimate[i] = false;
@@ -254,6 +259,9 @@ void testApp::setup(){
 	testCard2.loadImage("768x1024.002.png");
 	testCard3.loadImage("768x1024.003.png");
 	
+	// Create a new tessellation object 
+	//	tobj = gluNewTess(); 
+
 }
 
 //--------------------------------------------------------------
@@ -411,6 +419,8 @@ void testApp::bulletSetup(){
 	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0.0,((ofGetWidth()/3.0)+100.0)/100.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
 	groundRigidBody = new btRigidBody(groundRigidBodyCI);
+	groundRigidBody->setFriction(0.01);
+
 
 	//Left World Wall
 	
@@ -425,6 +435,23 @@ void testApp::bulletSetup(){
 	btDefaultMotionState* rightWallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3((((ofGetHeight()*3.0)+100.0)/100.0),0.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo rightWallRigidBodyCI(0,rightWallMotionState,rightWallShape,btVector3(0,0,0));
 	rightWallRigidBody = new btRigidBody(rightWallRigidBodyCI);
+	
+
+	//Front World Wall
+	
+	btCollisionShape* frontWallShape = new btStaticPlaneShape(btVector3(0,0,1),1);
+	btDefaultMotionState* frontWallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0.0,0.0,-10)));
+	btRigidBody::btRigidBodyConstructionInfo frontWallRigidBodyCI(0,frontWallMotionState,frontWallShape,btVector3(0,0,0));
+	frontWallRigidBody = new btRigidBody(frontWallRigidBodyCI);
+	dynamicsWorld->addRigidBody(frontWallRigidBody);
+	
+	//Back World Wall
+	
+	btCollisionShape* backWallShape = new btStaticPlaneShape(btVector3(0,0,-1),1);
+	btDefaultMotionState* backWallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0.0,0.0,10)));
+	btRigidBody::btRigidBodyConstructionInfo backWallRigidBodyCI(0,backWallMotionState,backWallShape,btVector3(0,0,0));
+	backWallRigidBody = new btRigidBody(backWallRigidBodyCI);
+	dynamicsWorld->addRigidBody(backWallRigidBody);
 	
 	//Text 1 walls
 	
@@ -475,7 +502,7 @@ void testApp::bulletSetup(){
 	textWall3RightRigidBody->setActivationState(DISABLE_DEACTIVATION);
 
 	
-	//Collider
+	//Mouse Collider
 	btCollisionShape* fallShape = new btBoxShape(btVector3(0.1,0.1,6000));
 	btVector3 pos = btVector3(1,1,0);
 	btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),pos));
@@ -494,6 +521,8 @@ void testApp::bulletSetup(){
 
 //--------------------------------------------------------------
 void testApp::update(){
+	
+	// printf("%i update\n", ofGetFrameNum());    
 	
 	frameRate = ofGetFrameRate();
 	
@@ -526,14 +555,14 @@ void testApp::update(){
 	ofxPoint2f p;
 	if (vidTracker.isFrameNew()){		
 		colorImg.setFromPixels(vidTracker.getPixels(), 720,576);
-		for(int i = 0; i < 3; i++) {
+			for(int i = 0; i < 3; i++) {
 			if(camCaptureBackground[i]){
 				camera[i].bLearnBakground = true;
 				camCaptureBackground[i] = false;
 			}
 			camera[i].threshold = camThreshold[i];
 			if(camRefresh[i])
-				camera[i].update();
+				camera[i].update(blobExpansion[i]);
 		}
 	}
 		
@@ -620,14 +649,25 @@ void testApp::update(){
 	}
 	
 	// Silhouette 1
-	
+	int mult = 1; 
+
 	btConvexHullShape * silhouette1Shape = new btConvexHullShape();
 	if(camera[0].contourFinder.nBlobs > 0){
+		for(int i=0;i<camera[0].contourFinder.nBlobs;i++){
+			for(int j=0;j<camera[0].contourFinder.blobs[i].nPts;j++){
+				silhouette1Shape->addPoint(btVector3(camera[0].contourFinder.blobs[i].pts[j].x*ofGetHeight()/100.0, camera[0].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
+				silhouette1Shape->addPoint(btVector3(camera[0].contourFinder.blobs[i].pts[j].x*ofGetHeight()/100.0, camera[0].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+				mult *= -1;
+			}
+		}
+		/** USING THE SIMPLIFiER
 		for(int i=0;i<camera[0].simplify->numPoints;i++){
-			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
-			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
+			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
+			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+			mult *= -1;
 			//cout<<camera[0].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
 		}
+		// **/
 	}
 	btVector3 silhouette1Pos = btVector3(0,0,0);
 	silhouette1MotionState = btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),silhouette1Pos));
@@ -638,7 +678,8 @@ void testApp::update(){
 	btRigidBody* silhouette1 = new btRigidBody(silhouette1RigidBodyCI);
 	//silhouette->setGravity(btVector3(0.,0.,0.));
 	//silhouette->setDamping(0.99,0.9);
-	silhouette1->setRestitution(0.0);
+	silhouette1->setRestitution(0.02);
+	silhouette1->setFriction(0.1);
 	silhouette1->setCollisionFlags( silhouette1->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	silhouette1->setActivationState(DISABLE_DEACTIVATION);
 	if(camEnable[0]){
@@ -649,11 +690,21 @@ void testApp::update(){
 
 	btConvexHullShape * silhouette2Shape = new btConvexHullShape();
 	if(camera[1].contourFinder.nBlobs > 0){
+		for(int i=0;i<camera[1].contourFinder.nBlobs;i++){
+			for(int j=0;j<camera[1].contourFinder.blobs[i].nPts;j++){
+				silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].contourFinder.blobs[i].pts[j].x*ofGetHeight()))/100.0, camera[1].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
+				silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].contourFinder.blobs[i].pts[j].x*ofGetHeight()))/100.0, camera[1].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+				mult *= -1;
+			}
+		}
+		/** USING THE SIMPLIFiER
 		for(int i=0;i<camera[1].simplify->numPoints;i++){
-			silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].simplify->points[i].x*ofGetHeight()))/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
-			silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].simplify->points[i].x*ofGetHeight()))/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
+			silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].simplify->points[i].x*ofGetHeight()))/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
+			silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].simplify->points[i].x*ofGetHeight()))/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+			mult *= -1;
 			//cout<<camera[1].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
 		}
+		 // **/
 	}
 	btVector3 silhouette2Pos = btVector3(0,0,0);
 	silhouette2MotionState = btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),silhouette2Pos));
@@ -664,7 +715,8 @@ void testApp::update(){
 	btRigidBody* silhouette2 = new btRigidBody(silhouette2RigidBodyCI);
 	//silhouette->setGravity(btVector3(0.,0.,0.));
 	//silhouette->setDamping(0.99,0.9);
-	silhouette2->setRestitution(0.0);
+	silhouette2->setRestitution(0.02);
+	silhouette2->setFriction(0.1);
 	silhouette2->setCollisionFlags( silhouette2->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	silhouette2->setActivationState(DISABLE_DEACTIVATION);
 	if(camEnable[1]){
@@ -675,11 +727,21 @@ void testApp::update(){
 	
 	btConvexHullShape * silhouette3Shape = new btConvexHullShape();
 	if(camera[2].contourFinder.nBlobs > 0){
+		for(int i=0;i<camera[2].contourFinder.nBlobs;i++){
+			for(int j=0;j<camera[2].contourFinder.blobs[i].nPts;j++){
+				silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].contourFinder.blobs[i].pts[j].x*ofGetHeight()))/100.0, camera[2].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
+				silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].contourFinder.blobs[i].pts[j].x*ofGetHeight()))/100.0, camera[2].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+				mult *= -1;
+			}
+		}
+		/** USING THE SIMPLIFiER
 		for(int i=0;i<camera[2].simplify->numPoints;i++){
-			silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].simplify->points[i].x*ofGetHeight()))/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
-			silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].simplify->points[i].x*ofGetHeight()))/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
+			silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].simplify->points[i].x*ofGetHeight()))/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
+			silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].simplify->points[i].x*ofGetHeight()))/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+						mult *= -1;
 			//cout<<camera[2].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
 		}
+		 // **/
 	}
 	btVector3 silhouette3Pos = btVector3(0,0,0);
 	silhouette3MotionState = btDefaultMotionState(btTransform(btQuaternion(0,0,0,0.3),silhouette3Pos));
@@ -690,7 +752,8 @@ void testApp::update(){
 	btRigidBody* silhouette3 = new btRigidBody(silhouette3RigidBodyCI);
 	//silhouette->setGravity(btVector3(0.,0.,0.));
 	//silhouette->setDamping(0.99,0.9);
-	silhouette3->setRestitution(0.0);
+	silhouette3->setRestitution(0.02);
+	silhouette3->setFriction(0.1);
 	silhouette3->setCollisionFlags( silhouette3->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	silhouette3->setActivationState(DISABLE_DEACTIVATION);
 	if(camEnable[2]){
@@ -716,6 +779,67 @@ void testApp::update(){
 	collider->getMotionState()->getWorldTransform(col_trans);
 	col_pos = col_trans.getOrigin();
 
+	
+	// Rain
+	
+	if(rainEnable) {
+		rainDropCount = rainDrops.size();
+		if(rainDropCount > 100){
+			rainDrops[0].pauseBullet();
+			rainDrops.erase(rainDrops.begin());
+		}
+		if(rainTrigger){
+			float randomFactor = ofRandom(0.5, 1.0);
+			Text drop = Text();
+			drop.setText("§");
+			if(rainDropCount%3 == 0){
+				drop.setFont(&rainFontSmall);
+				drop.setLineHeight(rainDropSize*0.75);
+				drop.setWidth(rainDropSize*0.5*0.75);
+			} else if ((rainDropCount+1)%3 == 0){
+				drop.setFont(&rainFontMedium);
+				drop.setLineHeight(rainDropSize);
+				drop.setWidth(rainDropSize*0.5);
+			} else if ((rainDropCount+2)%3 == 0){
+				drop.setFont(&rainFontBig);
+				drop.setLineHeight(rainDropSize*1.25);
+				drop.setWidth(rainDropSize*0.5*1.25);
+			}
+			drop.setWordBlocks(true);
+			drop.setDepth(50);
+			drop.constructText(false);
+			drop.translate(ofRandom(0.0,1.0)*(3*ofGetHeight()),-175,0);
+			drop.setFriction(1.0);
+			drop.setDamping(0.20);
+			drop.setMass(0.1);
+			drop.setInertia(ofRandom(-1.0,1.0),ofRandom(0.0,1.0),0.0);
+			drop.setRestitution(0.8);
+			drop.setupBullet(dynamicsWorld, true);
+			rainDrops.push_back(drop);
+		}
+#pragma omp parallel
+		{
+#pragma omp num_treads(24)
+#pragma omp for
+			for(int i = 0; i < rainDrops.size(); i++){
+				rainDrops[i].setWorldWrapX(worldWrapX);
+				rainDrops[i].setWorldWrapY(worldWrapY);
+				rainDrops[i].setWorldConstrainZ(worldConstrainZ);
+				rainDrops[i].updateBullet(false);
+			}
+		}
+	} else {
+		yOffset = 0;
+		for(int i = 0; i < rainDrops.size(); i++){
+			rainDrops[i].clear();
+		}
+		rainDrops.clear();
+		rainTrigger = false;
+	}
+	
+	
+	
+	
 	ofxPoint2f d[4];
 	for(int i=0;i<4;i++){
 		d[i].x = (float)cameraCorners[0][i].x;
@@ -742,6 +866,8 @@ void testApp::update(){
 	
 	// Walls
 	 
+#define FIXED_STEP = 1	
+	
 #ifdef FIXED_STEP
 	dynamicsWorld->stepSimulation(1.0f/60.f,0);
 	
@@ -773,63 +899,7 @@ void testApp::update(){
 	 }
 	 
 #endif
-	
-	// Rain
 		
-	if(rainEnable) {
-		rainDropCount = rainDrops.size();
-		if(rainDropCount > 200){
-			rainDrops.erase(rainDrops.begin());
-		}
-		if(rainTrigger){
-			float randomFactor = ofRandom(0.5, 1.0);
-			Text drop = Text();
-			drop.setText("§");
-			if(rainDropCount%3 == 0){
-				drop.setFont(&rainFontSmall);
-				drop.setLineHeight(rainDropSize*0.75);
-				drop.setWidth(rainDropSize*0.5*0.75);
-			} else if ((rainDropCount+1)%3 == 0){
-				drop.setFont(&rainFontMedium);
-				drop.setLineHeight(rainDropSize);
-				drop.setWidth(rainDropSize*0.5);
-			} else if ((rainDropCount+2)%3 == 0){
-				drop.setFont(&rainFontBig);
-				drop.setLineHeight(rainDropSize*1.25);
-				drop.setWidth(rainDropSize*0.5*1.25);
-			}
-			drop.setWordBlocks(true);
-			drop.setDepth(50);
-			drop.constructText(false);
-			drop.translate(sin(ofRandom(0.0,1.0))*(3*ofGetHeight()),-rainDropSize*3,0);
-			drop.setFriction(0.1);
-			drop.setDamping(0.20);
-			drop.setMass(0.25);
-			drop.setInertia(ofRandom(0,20),ofRandom(15,20),0);
-			drop.setRestitution(0.0);
-			drop.setupBullet(dynamicsWorld, true);
-			rainDrops.push_back(drop);
-		}
-#pragma omp parallel
-		{
-#pragma omp num_treads(24)
-#pragma omp for
-			for(int i = 0; i < rainDrops.size(); i++){
-				rainDrops[i].setWorldWrapX(worldWrapX);
-				rainDrops[i].setWorldWrapY(worldWrapY);
-				rainDrops[i].setWorldConstrainZ(worldConstrainZ);
-				rainDrops[i].updateBullet(false);
-			}
-		}
-	} else {
-		yOffset = 0;
-		for(int i = 0; i < rainDrops.size(); i++){
-			rainDrops.at(0).clear();
-		}
-		rainDrops.clear();
-	}
-	rainTrigger = false;
-	
 	// Silhouette
 	
 	if(camEnable[0]){
@@ -899,7 +969,7 @@ void testApp::textUpdate(){
 				texts[i].setWordBlocks(wordBlocks[i]);
 				texts[i].setDepth(textDepth[i]);
 				texts[i].setWidth(textWidth[i]);
-				texts[i].constructText(true);
+				texts[i].constructText(false);
 			}
 			if(fabs(texts[i].getTranslate().x - ((i*ofGetHeight())+textPosition[i].x)) > 0.05 ||
 			   fabs(texts[i].getTranslate().y - textPosition[i].y) > 0.05 ||
@@ -952,10 +1022,17 @@ void testApp::textUpdate(){
 
 void testApp::draw(){
 	
-	if(rainEnable && rainDrops.size() > 100)
-		yOffset-=1.33;
-	if(!rainEnable)
-		yOffset = 0.0;		
+//	printf("%i draw\n", ofGetFrameNum());   
+		
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	if(rainEnable && rainDrops.size() > 80)
+		yOffset-=1.0;
+	if(rainEnable && rainDrops.size() < 10)
+		yOffset=150;
+	if(!rainEnable) {
+		yOffset = 0.0;
+	}
 	
 	if(showStatus){
 		if(statusOffset <1.0)
@@ -1061,7 +1138,7 @@ void testApp::draw(){
 	cvReleaseMat( &translate );
 	cvReleaseMat( &src_mat );
 	cvReleaseMat( &dst_mat );
-
+	
 	glClipPlane(GL_CLIP_PLANE2, eqnLtY);
 	glEnable(GL_CLIP_PLANE2);
 	glClipPlane(GL_CLIP_PLANE3, eqnLtX);
@@ -1073,12 +1150,20 @@ void testApp::draw(){
 	glEnable(GL_CLIP_PLANE4);
 	glPopMatrix();
 
-	glTranslatef(0.0, 	yOffset, 0);
-	drawViewport();
+	drawViewport(0);
 
 	glDisable(GL_CLIP_PLANE2);
 	glDisable(GL_CLIP_PLANE3);
 	glDisable(GL_CLIP_PLANE4);
+	
+	//A frame
+	glDisable(GL_DEPTH_TEST);
+	ofSetColor(0,0,0,255);
+	ofRect((ofGetHeight()*0)-100, -100, ofGetHeight()+200, 100); //top
+	ofRect((ofGetHeight()*(0+1)), -100, 100, (ofGetWidth()/3.0)+200); //right
+	if(!rainEnable)
+		ofRect((ofGetHeight()*0)-100, (ofGetWidth()/3.0), ofGetHeight()+200, (ofGetWidth()/3.0)+100); //bottom
+	ofRect((ofGetHeight()*0)-100, -100, 100, (ofGetWidth()/3.0)+200); //left
 	
 	//Screen 2
 	
@@ -1150,13 +1235,22 @@ void testApp::draw(){
 	glEnable(GL_CLIP_PLANE4);
 	glPopMatrix();
 	
-	glTranslatef(-ofGetHeight(), yOffset, 0);
+	glTranslatef(-ofGetHeight(), 0, 0);
 
-	drawViewport();
+	drawViewport(1);
 	
 	glDisable(GL_CLIP_PLANE2);
 	glDisable(GL_CLIP_PLANE3);
 	glDisable(GL_CLIP_PLANE4);
+	
+	//A frame
+	glDisable(GL_DEPTH_TEST);
+	ofSetColor(0,0,0,255);
+	ofRect((ofGetHeight()*1)-100, -100, ofGetHeight()+200, 100); //top
+	ofRect((ofGetHeight()*(1+1)), -100, 100, (ofGetWidth()/3.0)+200); //right
+	if(!rainEnable)
+		ofRect((ofGetHeight()*1)-100, (ofGetWidth()/3.0), ofGetHeight()+200, (ofGetWidth()/3.0)+100); //bottom
+	ofRect((ofGetHeight()*1)-100, -100, 100, (ofGetWidth()/3.0)+200); //left
 	
 	//Screen 3	
 	
@@ -1228,14 +1322,22 @@ void testApp::draw(){
 		glEnable(GL_CLIP_PLANE4);
 	glPopMatrix();
 	
-	glTranslatef(-ofGetHeight()*2.0, yOffset, 0);
+	glTranslatef(-ofGetHeight()*2.0, 0, 0);
 
-	drawViewport();
+	drawViewport(2);
 
 	glDisable(GL_CLIP_PLANE2);
 	glDisable(GL_CLIP_PLANE3);
 	glDisable(GL_CLIP_PLANE4);
 	
+	//A frame
+	glDisable(GL_DEPTH_TEST);
+	ofSetColor(0,0,0,255);
+	ofRect((ofGetHeight()*2)-100, -100, ofGetHeight()+200, 100); //top
+	ofRect((ofGetHeight()*(2+1)), -100, 100, (ofGetWidth()/3.0)+200); //right
+	if(!rainEnable)
+		ofRect((ofGetHeight()*2)-100, (ofGetWidth()/3.0), ofGetHeight()+200, (ofGetWidth()/3.0)+100); //bottom
+	ofRect((ofGetHeight()*2)-100, -100, 100, (ofGetWidth()/3.0)+200); //left
 	
 	//perspective overview	
 	
@@ -1295,7 +1397,9 @@ void testApp::draw(){
 		statusOffset = 0.0;
 		perspectiveOffset = 0.0;
 		showPerspective = false;
-		drawViewport();
+		
+		drawViewport(-1);
+		
 		showPerspective = showPerspectiveBefore;
 		showStatus = showStatusBefore;
 		statusOffset = statusOffsetBefore;
@@ -1321,20 +1425,47 @@ void testApp::draw(){
 }
 
 //--------------------------------------------------------------
-void testApp::drawViewport(){
-	
-	
-	
+void testApp::drawViewport(int screen){
 	//** grids etc. for projection calibration
-
-	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_DEPTH_TEST);
 	ofEnableAlphaBlending();
+	ofFill();
+
+	//Draw Background
+	
+	glPushMatrix();
+	glTranslatef(0.0, 0.0, -1000.0);
+	
+	if(rainEnable) {
+		glPushMatrix();
+		glTranslatef(0.0, yOffset, 0);
+		ofFill();
+		ofSetColor(0,0,0,255);
+		ofRect(0,-500, (ofGetHeight()*3.0), (500+(ofGetWidth()/3.0)));
+		glPopMatrix();
+	} else {
+		for(int i=0;i<3;i++){
+			if(i == screen || screen < 0){
+				ofFill();
+				ofSetColor(backgroundColorR[i]*255, backgroundColorG[i]*255, backgroundColorB[i]*255, backgroundColorA[i]*255);
+				ofRect((ofGetHeight()*i),0, ofGetHeight(), (ofGetWidth()/3.0));
+			}
+		}
+	}
+	glTranslatef(0.0, 0.0, 1000.0);
+	glPopMatrix();
+	
+	glEnable(GL_DEPTH_TEST);
 
 	if(moveProjectorCorners){
+		glPushMatrix();
 		glTranslatef(0.0, 0.0, -400.0);
-		ofSetColor(255,255,255);
+		ofSetColor(255,255,255,255);
+		if(screen == 0 || screen < 0)
 		testCard1.draw(0,0,ofGetHeight(),ofGetWidth()/3.0);
+		if(screen == 1 || screen < 0)
 		testCard2.draw(ofGetHeight(),0,ofGetHeight(),ofGetWidth()/3.0);
+		if(screen == 2 || screen < 0)
 		testCard3.draw(ofGetHeight()*2.0,0,ofGetHeight(),ofGetWidth()/3.0);
 		
 		ofEnableAlphaBlending();
@@ -1347,51 +1478,72 @@ void testApp::drawViewport(){
 			ofLine(0, h, ofGetHeight()*3.0, h);
 		}
 		glTranslatef(0.0, 0.0, 400.0);
+		glPopMatrix();
 	}
-	
-	//Draw Background
-	
-	glPushMatrix();
-	glTranslatef(0.0, 0.0, -1000.0);
-	
-	for(int i=0;i<3;i++){
-		ofSetColor(backgroundColorR[i]*255, backgroundColorG[i]*255, backgroundColorB[i]*255, 255);
-		ofRect(ofGetHeight()*i, 0, ofGetHeight(), ofGetWidth()/3.0);
-	}
-	glTranslatef(0.0, 0.0, 1000.0);
-	glPopMatrix();
-	
 	
 	//Draw Letters
 
 	ofEnableAlphaBlending();
 	for(int i=0;i<3;i++){
+		ofFill();
 		ofSetColor(textColorR[i]*255, textColorG[i]*255, textColorB[i]*255, textColorA[i]*255);
 		texts[i].drawText();
 		//texts[i].drawBricks();
 		
 	}
 	
-	/**
-	for(int i=0;i<3;i++){
-		ofSetColor(blobColorR[i]*255, blobColorG[i]*255, blobColorB[i]*255, blobColorA[i]*255);
-		
-		
-	}
-	
-	 **/
-	
 	// Draw Rain
 	
-	for(int i = 0; i < rainDrops.size(); i++){
-		ofSetColor(255,255,255,255);
-		rainDrops[i].drawText();
-		//rainDrops[i].drawBricks();
-	}
 	if(rainEnable){
-		ofRect(0.0,(ofGetWidth()/3.0)+(rainDrops.size()>100?-20.0:-(rainDrops.size()-80.0)),ofGetHeight()*3,ofGetWidth());
+		glPushMatrix();
+		glTranslatef(0.0, yOffset, 0);
+		ofFill();
+		glPushAttrib(GL_BLEND_EQUATION);
+
+		if(yOffset < 100.0){
+			
+			glDisable(GL_DEPTH_TEST);
+			//glBlendFunc(GL_SRC_ALPHA,GL_ONE);
+
+			for(int i = 0;i < 100; i+=20){
+				ofSetColor(5,5,255,i);
+				ofRect(0.0,(ofGetWidth()/3.0)-(120-i),ofGetHeight()*3,ofGetWidth());
+			}
+			
+
+			ofSetColor(255,255,255,255);
+			ofRect(0.0,(ofGetWidth()/3.0)-40,ofGetHeight()*3,ofGetWidth());
+			ofBeginShape();
+			ofCurveVertex((ofGetHeight()*3)+200, (ofGetWidth()/3.0)+100);
+			ofCurveVertex(-200, (ofGetWidth()/3.0)+100);
+			for (int i = -200;i < (ofGetHeight()*3)+200; i+= 100){
+				ofCurveVertex(i-((fmodf(yOffset, 100))+50), (ofGetWidth()/3.0)-40);
+				ofCurveVertex(i-((fmodf(yOffset, 100))), (ofGetWidth()/3.0)-50);
+			}
+			ofEndShape(true);
+
+			
+			/** sne
+			for (int i=0; i < 5; i++){
+				float xPos = ofRandom(0,ofGetHeight()*3.0);
+				float radius = ofRandom(50,70);
+				ofSetColor(0,0,255,64);
+				ofCircle(xPos, (ofGetWidth()/3.0)+(radius-20), radius+50);
+				ofSetColor(255,255,255,63);
+				ofCircle(xPos, (ofGetWidth()/3.0)+(radius-20), radius);
+			}
+			// **/
+		}
+		glPopAttrib();
+		glEnable(GL_DEPTH_TEST);
+		for(int i = 0; i < rainDrops.size(); i++){
+			ofFill();
+			ofSetColor(255,255,255,255);
+			rainDrops[i].drawText();
+		}
+		glPopMatrix();
 	}
-	
+		
 	ofSetColor(255, 255, 255);
 
 	//Collider
@@ -1417,16 +1569,16 @@ void testApp::drawViewport(){
 	glPopMatrix();
 	}
 	
-	//trackerTexture.draw(0,0);	
-	
 	if(perspectiveOffset > 0.0){
 		glDisable(GL_DEPTH_TEST);
 		ofEnableAlphaBlending();
 		glPushMatrix();
 		glTranslatef(0,0,10);
+		ofFill();
 		ofSetColor(8+(backgroundColorR[1]*64.0), 10+(backgroundColorG[1]*64.0), 16+(backgroundColorB[1]*64.0), 240 * perspectiveOffset);
 		ofRect(ofGetHeight(),0,ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+(statusOffset*90.0));
 		for(int i=0;i<roundf((ofGetWidth()/6.0)/3.0);i+=3){
+			ofFill();
 			ofSetColor(8+(backgroundColorR[1]*64.0), 10+(backgroundColorG[1]*64.0), 16+(backgroundColorB[1]*64.0),  perspectiveOffset*240*cos(2.0*(i/((ofGetWidth()/6.0)/3.0))));
 			ofRect(ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+i+(statusOffset*90.0), ofGetHeight(), 3);
 		}
@@ -1438,6 +1590,7 @@ void testApp::drawViewport(){
 		ofEnableAlphaBlending();
 		glPushMatrix();
 		glTranslatef(0,0,10);
+		ofFill();
 		for(int i=0 ; i<100 ; i+=2){
 			ofSetColor(12*(i/100.0), 12*(i/100.0), (12*(i/100.0))+4, statusOffset*((50.0-(i/2.0))+64.0));
 			ofRect(0,i, ofGetHeight()*3.0,2.0);
@@ -1453,6 +1606,7 @@ void testApp::drawViewport(){
 
 		textOffset = ofGetHeight()-((20+(((80*(4/3.0))+10)*3)));
 
+		if(screen == 0){
 		glPushMatrix();
 		glTranslatef(10, 10, 1.0);
 		glTranslatef(ofGetHeight()-(10+(((80*(4/3.0))+10)*3)), 0, 0);
@@ -1462,7 +1616,8 @@ void testApp::drawViewport(){
 		glTranslatef(10+(80*(4/3.0)), 0, 0);
 		camera[0].colorImg->draw(0,0,(80*(4/3.0)),80);
 		glPopMatrix();
-		
+		}
+		if(screen == 1){
 		glPushMatrix();
 		glTranslatef(10, 10, 1.0);
 		glTranslatef((2*ofGetHeight())-(10+(((80*(4/3.0))+10)*3)), 0, 0);
@@ -1472,7 +1627,8 @@ void testApp::drawViewport(){
 		glTranslatef(10+(80*(4/3.0)), 0, 0);
 		camera[1].colorImg->draw(0,0,(80*(4/3.0)),80);
 		glPopMatrix();
-		
+		}
+		if(screen == 2){
 		glPushMatrix();
 		glTranslatef(10, 10, 1.0);
 		glTranslatef((3*ofGetHeight())-(10+(((80*(4/3.0))+10)*3)), 0, 0);
@@ -1482,13 +1638,15 @@ void testApp::drawViewport(){
 		glTranslatef(10+(80*(4/3.0)), 0, 0);
 		camera[2].colorImg->draw(0,0,(80*(4/3.0)),80);
 		glPopMatrix();
-		
+		}
 		}
 			
 		for(int i = 0 ; i < 3 ; i++) {
+			if(screen == i){
 			glPushMatrix();
 			glTranslatef((i*ofGetHeight())+10, 20, 1.0);
 			glPushMatrix();
+			glTranslatef(textOffset-(2*80*(4/3.0)), 0, 0);
 			ofSetColor(255, 255, 255, 255*statusOffset);
 			statusFontBold.drawString("FPS: " + ofToString(ofGetFrameRate(),2),0,0);
 			glTranslatef(0, 13, 0);
@@ -1543,36 +1701,86 @@ void testApp::drawViewport(){
 			statusFontBold.drawString(ofToString(camera[i].threshold ),0,0);
 			glPopMatrix();
 			glPopMatrix();
+			}
 		}
 	glPopMatrix();
 	}
 
 	//Cameras
 	
+	// images 
+	ofFill();
 	if(moveCameraCorners){
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE);
-		glPushMatrix();
-		glTranslatef(0.0, 0.0, 2.0);
-		ofSetColor(27, 27, 15);
-		glTranslatef(0.0, (ofGetWidth()/3.0)-(ofGetHeight()*(camera[0].grayImage.height/(float)camera[0].grayImage.width)), 0.0);
-		ofRect(0,0,ofGetHeight(),ofGetHeight()*(camera[0].grayImage.height/(float)camera[0].grayImage.width));
-		glTranslatef(ofGetHeight(), 0.0, 0.0);
-		ofRect(0,0,ofGetHeight(),ofGetHeight()*(camera[1].grayImage.height/(float)camera[0].grayImage.width));
-		glTranslatef(ofGetHeight(), 0.0, 0.0);
-		ofRect(0,0,ofGetHeight(),ofGetHeight()*(camera[2].grayImage.height/(float)camera[0].grayImage.width));
-		glPopMatrix();
 		glPushMatrix();
 		glTranslatef(0.0, 0.0, 4.0);
 		ofSetColor(127,127,127);
 		glTranslatef(0.0, (ofGetWidth()/3.0)-(ofGetHeight()*(camera[0].grayImage.height/(float)camera[0].grayImage.width)), 0.0);
+		if(screen == 0)
 		camera[0].grayImage.draw(0,0,ofGetHeight(),ofGetHeight()*(camera[0].grayImage.height/(float)camera[0].grayImage.width));
 		glTranslatef(ofGetHeight(), 0.0, 0.0);
+		if(screen == 1)
 		camera[1].grayImage.draw(0,0,ofGetHeight(),ofGetHeight()*(camera[1].grayImage.height/(float)camera[1].grayImage.width));
 		glTranslatef(ofGetHeight(), 0.0, 0.0);
+		if(screen == 2)
 		camera[2].grayImage.draw(0,0,ofGetHeight(),ofGetHeight()*(camera[2].grayImage.height/(float)camera[2].grayImage.width));
 		glPopMatrix();
 	}
+	glPushMatrix();
+	if(camDebug[0] || moveCameraCorners){
+		ofFill();
+		camera[0].draw(ofGetHeight(),ofGetWidth()/3.0);
+	}
+	glTranslatef(ofGetHeight(), 0.0, 0.0);
+	if(camDebug[1] || moveCameraCorners){
+		ofFill();
+		camera[1].draw(ofGetHeight(),ofGetWidth()/3.0);
+	}
+	glTranslatef(ofGetHeight(), 0.0, 0.0);
+	if(camDebug[2] || moveCameraCorners){
+		ofFill();
+		camera[2].draw(ofGetHeight(),ofGetWidth()/3.0);
+	}
+	glPopMatrix();
+	
+	
+	// Blobs
+	
+	glPushMatrix();
+	ofEnableAlphaBlending();
+	glDisable(GL_DEPTH_TEST);
+	for(int u=0;u<3;u++){
+		if(blobColorA[u] > 0.0 && (screen == u || screen < 0)){
+		ofSetColor(blobColorR[u]*255,blobColorG[u]*255,blobColorB[u]*255,blobColorA[u]*255);
+		ofFill();
+		if(camera[u].contourFinder.nBlobs > 0){
+			/** using ofShapes
+			ofBeginShape();
+			for(int i=0;i<camera[u].simplify->numPoints;i++){
+				ofCurveVertex((u*ofGetHeight())+camera[u].simplify->points[i].x*ofGetHeight(), camera[u].simplify->points[i].y*ofGetWidth()/3.0);
+			}
+			ofEndShape(true);
+			**/
+
+			int numSteps = 33;
+			
+			float spacing = 1.0/numSteps;
+
+			ofSetPolyMode(OF_POLY_WINDING_POSITIVE);
+
+			ofBeginShape();
+			for(float f=0; f<1; f+= spacing) {
+				ofxVec2f v = camera[u].simplify->mySpline2D.sampleAt(f);
+				ofCurveVertex((u*ofGetHeight())+v.x*ofGetHeight(), v.y*ofGetWidth()/3.0);
+			}
+			ofxVec2f v = camera[u].simplify->mySpline2D.sampleAt(0.0);
+			ofCurveVertex((u*ofGetHeight())+v.x*ofGetHeight(), v.y*ofGetWidth()/3.0);
+			ofEndShape(true);
+			
+		}
+		}
+	}
+	glPopMatrix();
+	
 	
 	if(makeSnaps){
 		img.grabScreen(0,0,ofGetWidth(),ofGetHeight());
@@ -1582,6 +1790,18 @@ void testApp::drawViewport(){
 		sprintf(snapString, "saved %s", fileName);
 		snapCounter++;
 	}
+	
+	
+	
+/*	if(camera[0].contourFinder.nBlobs > 0){
+		for(int i=0;i<camera[0].simplify->numPoints;i++){
+			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
+			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
+			//cout<<camera[0].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
+		}
+	}
+
+*/
 }
 
 //--------------------------------------------------------------
@@ -1618,7 +1838,6 @@ void testApp::keyPressed  (int key){
 			if (camera[0].threshold < 0) camera[0].threshold = 0;
 			if (camera[1].threshold < 0) camera[1].threshold = 0;
 			if (camera[2].threshold < 0) camera[2].threshold = 0;
-			cout<<camera[0].threshold<<endl;
 			break;
 		case 'v':
 			ofShowCursor();

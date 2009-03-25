@@ -4,6 +4,7 @@
 #include "ofMain.h"
 #define OF_ADDON_USING_OFXVECTORMATH
 #define OF_ADDON_USING_OFXOPENCV
+#define OF_ADDON_USING_OFXMSASPLINE
 
 #include "ofAddons.h"
 
@@ -18,7 +19,7 @@ public:
 	float damp;
 	bool hasBlob;
 	ofxBlobSimplify(int num, int w, int h, float damping);
-	
+	ofxMSASpline2D	mySpline2D;
 	
 	void update(vector <ofxCvBlob>* blobs);
 	void draw(int x, int y);

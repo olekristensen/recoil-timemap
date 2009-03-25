@@ -44,7 +44,7 @@ public:
 	void textUpdate();
 	
 	void draw();
-	void drawViewport();
+	void drawViewport(int screen);
 
 	void keyPressed(int key);
 	void keyReleased(int key);
@@ -74,10 +74,11 @@ public:
 	ofPoint projectorCorners[3][4];
 	
 	Camera camera[3];
+	
 		
 	ofVideoGrabber vidTracker;
 	ofTexture trackerTexture;
-	ofxCvColorImage		colorImg;
+	ofxCvColorImage	colorImg;
 	
 	ofVideoGrabber vidLeft;
 	ofTexture leftTexture;
@@ -99,6 +100,8 @@ public:
 	btRigidBody * groundRigidBody;
 	btRigidBody * leftWallRigidBody;
 	btRigidBody * rightWallRigidBody;
+	btRigidBody * frontWallRigidBody;
+	btRigidBody * backWallRigidBody;
 	vector<btRigidBody*> bodies;
 	
 	btRigidBody *collider;
@@ -179,6 +182,7 @@ public:
 	float	backgroundColorR[3];
 	float	backgroundColorG[3];
 	float	backgroundColorB[3];
+	float	backgroundColorA[3];
 	float	textFriction[3];
 	float	textDamping[3];
 	float	textMass[3];
@@ -235,6 +239,8 @@ public:
 	TextFontHolder rainFontBig;
 	
 	float yOffset;
+	
+	GLUtesselator *tobj;
 	
 };
 

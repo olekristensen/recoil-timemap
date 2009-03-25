@@ -64,7 +64,8 @@ public:
 		//Start by erasing the text. Should be edited later to be more inteligent
 		this->clear();
 		wstring cur_word = L"";
-		for(int i=0; i<=text.length(); i++){
+		if(text.length() > 0){
+		 for(int i=0; i<=text.length(); i++){
 			if(i == text.length() || text.substr(i,1) == L" " || text.substr(i,1) == L"\n") {
 				if(i < text.length()){
 					if(text.substr(i,1) == L"\n"){
@@ -85,11 +86,13 @@ public:
 				cur_word += text.substr(i,1);
 			}
 		}
+		}
 	}
 	
 	//----
 	//Setting up the words to make lines. Created from 0,0,0, and can later be translated
 	void positionText(){
+		if(getNumberLetters() > 0){
 		lines.clear();
 		lines.push_back(vector<Word*>());
 		float countX=0.0, countY=0.0,countZ=0.0;
@@ -113,6 +116,7 @@ public:
 					wordsInLine = 0;
 				}
 			}
+		}
 		}
 	}
 	
@@ -191,7 +195,11 @@ public:
 	}
 
 	ofPoint getTranslate(){
-		return getLetter(0)->getTranslate();
+		if(getNumberLetters() > 0){
+			return getLetter(0)->getTranslate();
+		} else {
+			return ofPoint(0,0,0);
+		}
 	}
 
 	void drawText(){
@@ -462,7 +470,8 @@ public:
 		for (int i=0;i<m_collisionShapes.size();i++) {
 			btCollisionShape* shape = m_collisionShapes[i];
 			if(shape){
-				delete shape;
+				// crashes
+				//delete shape;
 			}
 		}
 		m_collisionShapes.clear();
@@ -526,7 +535,7 @@ public:
 #pragma omp num_treads(12)
 #pragma omp parallel if(multiTreaded)
 			{
-#pragma omp for
+#pragma omp for nowait
 	for(int i=0; i<numLetters; i++){
 		l[i]->setPosition(pos[i].getX()*100, pos[i].getY()*100, pos[i].getZ()*100);
 		l[i]->matrix[0] = basis[i].getRow(0)[0];
