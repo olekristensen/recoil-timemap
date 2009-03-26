@@ -11,7 +11,7 @@ int main( ){
 	ofSetWindowPosition(3000, 0);
 	//glEnable(GL_MULTISAMPLE);
 	glEnable(GL_MULTISAMPLE);
-	ofSetVerticalSync(true);
+	//ofSetVerticalSync(true);
 	//ofToggleFullscreen();
 	// this kicks off the running of my app
 	ofRunApp(new testApp);

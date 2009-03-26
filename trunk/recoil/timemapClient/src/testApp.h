@@ -19,6 +19,8 @@
 #include "texts.h"
 #include "camera.h"
 #include "ofxBlobSimplify.h"
+#include "globals.h"
+
 //#include "of1394VideoGrabber.h"
 #include <AGL/agl.h>
 
@@ -241,7 +243,7 @@ public:
 	float yOffset;
 	
 	GLUtesselator *tobj;
-	
+		
 };
 
 #endif
