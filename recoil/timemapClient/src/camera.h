@@ -278,10 +278,10 @@ public:
 				centerBlob.pts.push_back(center2);
 				centerBlob.pts.push_back(center3);
 				centerBlob.pts.push_back(center4);
-				//centerBlob.area = 0.01*0.01;
-				//centerBlob.length = 0.4;
+				centerBlob.area = 0.01*0.01;
+				centerBlob.length = 0.4;
 				centerBlob.boundingRect = ofRectangle(center1.x,center1.y,center4.x,center4.y);
-				//centerBlob.centroid = ofPoint(cornerX,cornerY);
+				centerBlob.centroid = ofPoint(cornerX,cornerY);
 				centerBlob.nPts = 4;
 				//add blob
 				contourFinder.blobs.push_back(centerBlob);

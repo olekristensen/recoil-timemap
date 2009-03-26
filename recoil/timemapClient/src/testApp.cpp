@@ -2,6 +2,7 @@
 
 #include "testApp.h"
 
+
 const int maxProxies = 32766;
 const int maxOverlap = 65535;
 const int rainDropSize = 40;
@@ -19,16 +20,15 @@ static inline btVector3	Vector3Rand(){
 	return(p.normalized());
 }
 
+
 //--------------------------------------------------------------
 void testApp::setup(){
-	
-	printf("%i setup\n", ofGetFrameNum());    
 	
 	// General setup
 	
 	ofBackground(0, 0, 0);
 	ofSetBackgroundAuto(false);
-	ofSetFrameRate(30);
+	//ofSetFrameRate(30);
 	
 	// OSC Setup for sharedVariables
 	
@@ -363,11 +363,11 @@ void testApp::bulletSetup(){
 		dispatcher = new	btCollisionDispatcher(collisionConfiguration);
 #endif //USE_PARALLEL_DISPATCHER
 		
-	btVector3 worldAabbMin(0,0,0);
-	btVector3 worldAabbMax(ofGetHeight()*3.0, ofGetWidth()/3.0, 1000);
+	btVector3 worldAabbMin(0,0,-1000);
+	btVector3 worldAabbMax(globals.window.height*3.0, globals.window.width/3.0, 1000);
 	
 	broadphase = new btDbvtBroadphase();
-
+	//broadphase = new bt32BitAxisSweep3(worldAabbMin,worldAabbMax,maxProxies);
 		
 		
 #ifdef USE_PARALLEL_SOLVER
@@ -408,7 +408,7 @@ void testApp::bulletSetup(){
 	dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,broadphase,solver,collisionConfiguration);
 
 	dynamicsWorld->getSolverInfo().m_numIterations = 8;
-	dynamicsWorld->getSolverInfo().m_solverMode = SOLVER_USE_WARMSTARTING;
+	dynamicsWorld->getSolverInfo().m_solverMode = SOLVER_SIMD;
 	
 	dynamicsWorld->getDispatchInfo().m_enableSPU = true;
 	//dynamicsWorld->setGravity(btVector3(0,10,0));
@@ -416,7 +416,7 @@ void testApp::bulletSetup(){
 	
 	//Ground
 	btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0,-1.0,0),1);
-	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0.0,((ofGetWidth()/3.0)+100.0)/100.0,0)));
+	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0.0,((globals.window.width/3.0)+100.0)/100.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0,groundMotionState,groundShape,btVector3(0,0,0));
 	groundRigidBody = new btRigidBody(groundRigidBodyCI);
 	groundRigidBody->setFriction(0.01);
@@ -432,7 +432,7 @@ void testApp::bulletSetup(){
 	//Right World Wall
 	
 	btCollisionShape* rightWallShape = new btStaticPlaneShape(btVector3(-1,0,0),1);
-	btDefaultMotionState* rightWallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3((((ofGetHeight()*3.0)+100.0)/100.0),0.0,0)));
+	btDefaultMotionState* rightWallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3((((globals.window.height*3.0)+100.0)/100.0),0.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo rightWallRigidBodyCI(0,rightWallMotionState,rightWallShape,btVector3(0,0,0));
 	rightWallRigidBody = new btRigidBody(rightWallRigidBodyCI);
 	
@@ -455,15 +455,15 @@ void testApp::bulletSetup(){
 	
 	//Text 1 walls
 	
-	btCollisionShape* textWall1LeftShape = new btBoxShape(btVector3(0.015,(ofGetWidth()/3.0)/100.0,6000));
+	btCollisionShape* textWall1LeftShape = new btBoxShape(btVector3(0.015,(globals.window.width/3.0)/100.0,6000));
 	btDefaultMotionState* textWall1LeftMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(0.0,0.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo textWall1LeftRigidBodyCI(0.,textWall1LeftMotionState,textWall1LeftShape,btVector3(0,0,0));
 	textWall1LeftRigidBody = new btRigidBody(textWall1LeftRigidBodyCI);
 	textWall1LeftRigidBody->setCollisionFlags( textWall1LeftRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	textWall1LeftRigidBody->setActivationState(DISABLE_DEACTIVATION);
 	
-	btCollisionShape* textWall1RightShape = new btBoxShape(btVector3(0.015,(ofGetWidth()/3.0)/100.0,6000));
-	btDefaultMotionState* textWall1RightMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3((((ofGetHeight()*3.0))/100.0)/3.0,0.0,0)));
+	btCollisionShape* textWall1RightShape = new btBoxShape(btVector3(0.015,(globals.window.width/3.0)/100.0,6000));
+	btDefaultMotionState* textWall1RightMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3((((globals.window.height*3.0))/100.0)/3.0,0.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo textWall1RightRigidBodyCI(0.,textWall1RightMotionState,textWall1RightShape,btVector3(0,0,0));
 	textWall1RightRigidBody = new btRigidBody(textWall1RightRigidBodyCI);
 	textWall1RightRigidBody->setCollisionFlags( textWall1RightRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
@@ -471,15 +471,15 @@ void testApp::bulletSetup(){
 	
 	//Text 2 walls
 
-	btCollisionShape* textWall2LeftShape = new btBoxShape(btVector3(0.015,(ofGetWidth()/3.0)/100.0,6000));
-	btDefaultMotionState* textWall2LeftMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3((((ofGetHeight()*3.0))/100.0)/3.0,0.0,0)));
+	btCollisionShape* textWall2LeftShape = new btBoxShape(btVector3(0.015,(globals.window.width/3.0)/100.0,6000));
+	btDefaultMotionState* textWall2LeftMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3((((globals.window.height*3.0))/100.0)/3.0,0.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo textWall2LeftRigidBodyCI(0.,textWall2LeftMotionState,textWall2LeftShape,btVector3(0,0,0));
 	textWall2LeftRigidBody = new btRigidBody(textWall2LeftRigidBodyCI);
 	textWall2LeftRigidBody->setCollisionFlags( textWall2LeftRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	textWall2LeftRigidBody->setActivationState(DISABLE_DEACTIVATION);
 	
-	btCollisionShape* textWall2RightShape = new btBoxShape(btVector3(0.015,(ofGetWidth()/3.0)/100.0,6000));
-	btDefaultMotionState* textWall2RightMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(((((ofGetHeight()*3.0))/100.0)/3.0)*2.0,0.0,0)));
+	btCollisionShape* textWall2RightShape = new btBoxShape(btVector3(0.015,(globals.window.width/3.0)/100.0,6000));
+	btDefaultMotionState* textWall2RightMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(((((globals.window.height*3.0))/100.0)/3.0)*2.0,0.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo textWall2RightRigidBodyCI(0.,textWall2RightMotionState,textWall2RightShape,btVector3(0,0,0));
 	textWall2RightRigidBody = new btRigidBody(textWall2RightRigidBodyCI);
 	textWall2RightRigidBody->setCollisionFlags( textWall2RightRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
@@ -487,15 +487,15 @@ void testApp::bulletSetup(){
 	
 	//Text 3 walls
 	
-	btCollisionShape* textWall3LeftShape = new btBoxShape(btVector3(0.015,((ofGetWidth()/3.0)+100.0)/100.0,6000));
-	btDefaultMotionState* textWall3LeftMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(((((ofGetHeight()*3.0))/100.0)/3.0)*2.0,0.0,0)));
+	btCollisionShape* textWall3LeftShape = new btBoxShape(btVector3(0.015,((globals.window.width/3.0)+100.0)/100.0,6000));
+	btDefaultMotionState* textWall3LeftMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(((((globals.window.height*3.0))/100.0)/3.0)*2.0,0.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo textWall3LeftRigidBodyCI(0.,textWall3LeftMotionState,textWall3LeftShape,btVector3(0,0,0));
 	textWall3LeftRigidBody = new btRigidBody(textWall3LeftRigidBodyCI);
 	textWall3LeftRigidBody->setCollisionFlags( textWall3LeftRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
 	textWall3LeftRigidBody->setActivationState(DISABLE_DEACTIVATION);
 
-	btCollisionShape* textWall3RightShape = new btBoxShape(btVector3(0.015,((ofGetWidth()/3.0)+100.0)/100.0,6000));
-	btDefaultMotionState* textWall3RightMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3((((ofGetHeight()*3.0))/100.0),0.0,0)));
+	btCollisionShape* textWall3RightShape = new btBoxShape(btVector3(0.015,((globals.window.width/3.0)+100.0)/100.0,6000));
+	btDefaultMotionState* textWall3RightMotionState = new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3((((globals.window.height*3.0))/100.0),0.0,0)));
 	btRigidBody::btRigidBodyConstructionInfo textWall3RightRigidBodyCI(0.,textWall3RightMotionState,textWall3RightShape,btVector3(0,0,0));
 	textWall3RightRigidBody = new btRigidBody(textWall3RightRigidBodyCI);
 	textWall3RightRigidBody->setCollisionFlags( textWall3RightRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);  
@@ -521,7 +521,6 @@ void testApp::bulletSetup(){
 
 //--------------------------------------------------------------
 void testApp::update(){
-	
 	// printf("%i update\n", ofGetFrameNum());    
 	
 	frameRate = ofGetFrameRate();
@@ -655,17 +654,17 @@ void testApp::update(){
 	if(camera[0].contourFinder.nBlobs > 0){
 		for(int i=0;i<camera[0].contourFinder.nBlobs;i++){
 			for(int j=0;j<camera[0].contourFinder.blobs[i].nPts;j++){
-				silhouette1Shape->addPoint(btVector3(camera[0].contourFinder.blobs[i].pts[j].x*ofGetHeight()/100.0, camera[0].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
-				silhouette1Shape->addPoint(btVector3(camera[0].contourFinder.blobs[i].pts[j].x*ofGetHeight()/100.0, camera[0].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+				silhouette1Shape->addPoint(btVector3(camera[0].contourFinder.blobs[i].pts[j].x*globals.window.height/100.0, camera[0].contourFinder.blobs[i].pts[j].y*(globals.window.width/3.0)/100.0,+20000*mult));
+				silhouette1Shape->addPoint(btVector3(camera[0].contourFinder.blobs[i].pts[j].x*globals.window.height/100.0, camera[0].contourFinder.blobs[i].pts[j].y*(globals.window.width/3.0)/100.0,-20000*mult));
 				mult *= -1;
 			}
 		}
 		/** USING THE SIMPLIFiER
 		for(int i=0;i<camera[0].simplify->numPoints;i++){
-			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
-			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*globals.window.height/100.0, camera[0].simplify->points[i].y*(globals.window.width/3.0)/100.0,+20000*mult));
+			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*globals.window.height/100.0, camera[0].simplify->points[i].y*(globals.window.width/3.0)/100.0,-20000*mult));
 			mult *= -1;
-			//cout<<camera[0].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
+			//cout<<camera[0].simplify->points[i].x*globals.window.height/100.0<< "  ,  "<<camera[0].simplify->points[i].y*(globals.window.width/3.0)/100.0<<endl;
 		}
 		// **/
 	}
@@ -692,17 +691,17 @@ void testApp::update(){
 	if(camera[1].contourFinder.nBlobs > 0){
 		for(int i=0;i<camera[1].contourFinder.nBlobs;i++){
 			for(int j=0;j<camera[1].contourFinder.blobs[i].nPts;j++){
-				silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].contourFinder.blobs[i].pts[j].x*ofGetHeight()))/100.0, camera[1].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
-				silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].contourFinder.blobs[i].pts[j].x*ofGetHeight()))/100.0, camera[1].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+				silhouette2Shape->addPoint(btVector3((globals.window.height+(camera[1].contourFinder.blobs[i].pts[j].x*globals.window.height))/100.0, camera[1].contourFinder.blobs[i].pts[j].y*(globals.window.width/3.0)/100.0,+20000*mult));
+				silhouette2Shape->addPoint(btVector3((globals.window.height+(camera[1].contourFinder.blobs[i].pts[j].x*globals.window.height))/100.0, camera[1].contourFinder.blobs[i].pts[j].y*(globals.window.width/3.0)/100.0,-20000*mult));
 				mult *= -1;
 			}
 		}
 		/** USING THE SIMPLIFiER
 		for(int i=0;i<camera[1].simplify->numPoints;i++){
-			silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].simplify->points[i].x*ofGetHeight()))/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
-			silhouette2Shape->addPoint(btVector3((ofGetHeight()+(camera[1].simplify->points[i].x*ofGetHeight()))/100.0, camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+			silhouette2Shape->addPoint(btVector3((globals.window.height+(camera[1].simplify->points[i].x*globals.window.height))/100.0, camera[1].simplify->points[i].y*(globals.window.width/3.0)/100.0,+20000*mult));
+			silhouette2Shape->addPoint(btVector3((globals.window.height+(camera[1].simplify->points[i].x*globals.window.height))/100.0, camera[1].simplify->points[i].y*(globals.window.width/3.0)/100.0,-20000*mult));
 			mult *= -1;
-			//cout<<camera[1].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[1].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
+			//cout<<camera[1].simplify->points[i].x*globals.window.height/100.0<< "  ,  "<<camera[1].simplify->points[i].y*(globals.window.width/3.0)/100.0<<endl;
 		}
 		 // **/
 	}
@@ -729,17 +728,17 @@ void testApp::update(){
 	if(camera[2].contourFinder.nBlobs > 0){
 		for(int i=0;i<camera[2].contourFinder.nBlobs;i++){
 			for(int j=0;j<camera[2].contourFinder.blobs[i].nPts;j++){
-				silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].contourFinder.blobs[i].pts[j].x*ofGetHeight()))/100.0, camera[2].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
-				silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].contourFinder.blobs[i].pts[j].x*ofGetHeight()))/100.0, camera[2].contourFinder.blobs[i].pts[j].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+				silhouette3Shape->addPoint(btVector3((globals.window.height*2.0+(camera[2].contourFinder.blobs[i].pts[j].x*globals.window.height))/100.0, camera[2].contourFinder.blobs[i].pts[j].y*(globals.window.width/3.0)/100.0,+20000*mult));
+				silhouette3Shape->addPoint(btVector3((globals.window.height*2.0+(camera[2].contourFinder.blobs[i].pts[j].x*globals.window.height))/100.0, camera[2].contourFinder.blobs[i].pts[j].y*(globals.window.width/3.0)/100.0,-20000*mult));
 				mult *= -1;
 			}
 		}
 		/** USING THE SIMPLIFiER
 		for(int i=0;i<camera[2].simplify->numPoints;i++){
-			silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].simplify->points[i].x*ofGetHeight()))/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000*mult));
-			silhouette3Shape->addPoint(btVector3((ofGetHeight()*2.0+(camera[2].simplify->points[i].x*ofGetHeight()))/100.0, camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000*mult));
+			silhouette3Shape->addPoint(btVector3((globals.window.height*2.0+(camera[2].simplify->points[i].x*globals.window.height))/100.0, camera[2].simplify->points[i].y*(globals.window.width/3.0)/100.0,+20000*mult));
+			silhouette3Shape->addPoint(btVector3((globals.window.height*2.0+(camera[2].simplify->points[i].x*globals.window.height))/100.0, camera[2].simplify->points[i].y*(globals.window.width/3.0)/100.0,-20000*mult));
 						mult *= -1;
-			//cout<<camera[2].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[2].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
+			//cout<<camera[2].simplify->points[i].x*globals.window.height/100.0<< "  ,  "<<camera[2].simplify->points[i].y*(globals.window.width/3.0)/100.0<<endl;
 		}
 		 // **/
 	}
@@ -762,7 +761,7 @@ void testApp::update(){
 	
 	//Collider
 
-	if(mouseX > 0 && mouseX < ofGetWidth()){
+	if(mouseX > 0 && mouseX < globals.window.width){
 		ofHideCursor();
 		point.x += (mouseX*3.0/4.0-point.x);
 		point.y += (mouseY*4.0/3.0-point.y );
@@ -779,6 +778,31 @@ void testApp::update(){
 	collider->getMotionState()->getWorldTransform(col_trans);
 	col_pos = col_trans.getOrigin();
 
+		
+	ofxPoint2f d[4];
+	for(int i=0;i<4;i++){
+		d[i].x = (float)cameraCorners[0][i].x;
+		d[i].y = (float)cameraCorners[0][i].y;
+	}
+	camera[0].updateWarp(d);
+	
+	for(int i=0;i<4;i++){
+		d[i].x = (float)cameraCorners[1][i].x;
+		d[i].y = (float)cameraCorners[1][i].y;
+	}
+	camera[1].updateWarp(d);
+
+	for(int i=0;i<4;i++){
+		d[i].x = (float)cameraCorners[2][i].x;
+		d[i].y = (float)cameraCorners[2][i].y;
+	}
+	camera[2].updateWarp(d);
+	
+	
+	// Text
+	
+	textUpdate();
+	
 	
 	// Rain
 	
@@ -808,7 +832,7 @@ void testApp::update(){
 			drop.setWordBlocks(true);
 			drop.setDepth(50);
 			drop.constructText(false);
-			drop.translate(ofRandom(0.0,1.0)*(3*ofGetHeight()),-175,0);
+			drop.translate(ofRandom(0.0,1.0)*(3*globals.window.height),-175,0);
 			drop.setFriction(1.0);
 			drop.setDamping(0.20);
 			drop.setMass(0.1);
@@ -817,16 +841,12 @@ void testApp::update(){
 			drop.setupBullet(dynamicsWorld, true);
 			rainDrops.push_back(drop);
 		}
-#pragma omp parallel
-		{
-#pragma omp num_treads(24)
-#pragma omp for
-			for(int i = 0; i < rainDrops.size(); i++){
-				rainDrops[i].setWorldWrapX(worldWrapX);
-				rainDrops[i].setWorldWrapY(worldWrapY);
-				rainDrops[i].setWorldConstrainZ(worldConstrainZ);
-				rainDrops[i].updateBullet(false);
-			}
+#pragma omp parallel for
+		for(int i = 0; i < rainDrops.size(); i++){
+			rainDrops[i].setWorldWrapX(worldWrapX);
+			rainDrops[i].setWorldWrapY(worldWrapY);
+			rainDrops[i].setWorldConstrainZ(worldConstrainZ);
+			rainDrops[i].updateBullet(false);
 		}
 	} else {
 		yOffset = 0;
@@ -834,39 +854,13 @@ void testApp::update(){
 			rainDrops[i].clear();
 		}
 		rainDrops.clear();
-		rainTrigger = false;
 	}
+	rainTrigger = false;
 	
-	
-	
-	
-	ofxPoint2f d[4];
-	for(int i=0;i<4;i++){
-		d[i].x = (float)cameraCorners[0][i].x;
-		d[i].y = (float)cameraCorners[0][i].y;
-	}
-	camera[0].updateWarp(d);
-	
-	for(int i=0;i<4;i++){
-		d[i].x = (float)cameraCorners[1][i].x;
-		d[i].y = (float)cameraCorners[1][i].y;
-	}
-	camera[1].updateWarp(d);
-
-	for(int i=0;i<4;i++){
-		d[i].x = (float)cameraCorners[2][i].x;
-		d[i].y = (float)cameraCorners[2][i].y;
-	}
-	camera[2].updateWarp(d);
-	
-	
-	// Text
-	
-	textUpdate();
 	
 	// Walls
 	 
-#define FIXED_STEP = 1	
+//#define FIXED_STEP
 	
 #ifdef FIXED_STEP
 	dynamicsWorld->stepSimulation(1.0f/60.f,0);
@@ -971,11 +965,11 @@ void testApp::textUpdate(){
 				texts[i].setWidth(textWidth[i]);
 				texts[i].constructText(false);
 			}
-			if(fabs(texts[i].getTranslate().x - ((i*ofGetHeight())+textPosition[i].x)) > 0.05 ||
+			if(fabs(texts[i].getTranslate().x - ((i*globals.window.height)+textPosition[i].x)) > 0.05 ||
 			   fabs(texts[i].getTranslate().y - textPosition[i].y) > 0.05 ||
 			   fabs(texts[i].getTranslate().z - textPosition[i].z) > 0.05)
 			{
-				texts[i].translate((i*ofGetHeight())+textPosition[i].x,textPosition[i].y,0);
+				texts[i].translate((i*globals.window.height)+textPosition[i].x,textPosition[i].y,0);
 			}
 			if(textScaffolding[i]){
 				texts[i].createScaffolding();
@@ -1026,13 +1020,10 @@ void testApp::draw(){
 		
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	if(rainEnable && rainDrops.size() > 80)
-		yOffset-=1.0;
-	if(rainEnable && rainDrops.size() < 10)
-		yOffset=150;
-	if(!rainEnable) {
+	if(rainEnable)
+		yOffset=100;
+	else 
 		yOffset = 0.0;
-	}
 	
 	if(showStatus){
 		if(statusOffset <1.0)
@@ -1081,8 +1072,8 @@ void testApp::draw(){
 	
 	glMatrixMode(GL_PROJECTION); 
 	glLoadIdentity(); 
-	glOrtho(0.0, (float)ofGetHeight(),
-			0.0, (float)ofGetWidth()/3.0, 10.0, 2500);
+	glOrtho(0.0, (float)globals.window.height,
+			0.0, (float)globals.window.width/3.0, 10.0, 2500);
 	
 	glMatrixMode(GL_MODELVIEW); 
 	glLoadIdentity();
@@ -1091,30 +1082,30 @@ void testApp::draw(){
 			  0.0, 1.0, 0.0);
 	
 	glScalef(1, -1, 1);           // invert Y axis so increasing Y goes down.
-  	glTranslatef(0, -(float)ofGetWidth()/3.0, 0);       // shift origin up to upper-left corner.
+  	glTranslatef(0, -(float)globals.window.width/3.0, 0);       // shift origin up to upper-left corner.
 	
-	glViewport(0, 0, ofGetWidth()/3, ofGetHeight());
+	glViewport(0, 0, globals.window.width/3, globals.window.height);
 
 	CvPoint2D32f cvsrc[4];
 	CvPoint2D32f cvdst[4];	
 
 	cvsrc[0].x = 0;
-	cvsrc[0].y = 4.0*ofGetHeight()/3.0;		
+	cvsrc[0].y = 4.0*globals.window.height/3.0;		
 	cvsrc[1].x = 0;
 	cvsrc[1].y = 0;
-	cvsrc[2].x = ofGetWidth()/4.0;
+	cvsrc[2].x = globals.window.width/4.0;
 	cvsrc[2].y = 0;
-	cvsrc[3].x = ofGetWidth()/4.0;
-	cvsrc[3].y = 4.0*ofGetHeight()/3.0;	
+	cvsrc[3].x = globals.window.width/4.0;
+	cvsrc[3].y = 4.0*globals.window.height/3.0;	
 	
-	cvdst[0].y = ofGetWidth()/3.0*(1.0-projectorCorners[0][3].x);
-	cvdst[0].x = ofGetHeight()*projectorCorners[0][3].y;
-	cvdst[1].y = ofGetWidth()/3.0*(1.0-projectorCorners[0][0].x);
-	cvdst[1].x = ofGetHeight()*projectorCorners[0][0].y;
-	cvdst[2].y = ofGetWidth()/3.0*(1.0-projectorCorners[0][1].x);
-	cvdst[2].x = ofGetHeight()*projectorCorners[0][1].y;
-	cvdst[3].y = ofGetWidth()/3.0*(1.0-projectorCorners[0][2].x);
-	cvdst[3].x = ofGetHeight()*projectorCorners[0][2].y;	
+	cvdst[0].y = globals.window.width/3.0*(1.0-projectorCorners[0][3].x);
+	cvdst[0].x = globals.window.height*projectorCorners[0][3].y;
+	cvdst[1].y = globals.window.width/3.0*(1.0-projectorCorners[0][0].x);
+	cvdst[1].x = globals.window.height*projectorCorners[0][0].y;
+	cvdst[2].y = globals.window.width/3.0*(1.0-projectorCorners[0][1].x);
+	cvdst[2].x = globals.window.height*projectorCorners[0][1].y;
+	cvdst[3].y = globals.window.width/3.0*(1.0-projectorCorners[0][2].x);
+	cvdst[3].x = globals.window.height*projectorCorners[0][2].y;	
 	
 	CvMat * translate = cvCreateMat(3,3,CV_32FC1);
 	CvMat* src_mat = cvCreateMat( 4, 2, CV_32FC1 );
@@ -1145,7 +1136,7 @@ void testApp::draw(){
 	glEnable(GL_CLIP_PLANE3);
 	
 	glPushMatrix();
-	glTranslatef(ofGetHeight(), 0, 0);
+	glTranslatef(globals.window.height, 0, 0);
 	glClipPlane(GL_CLIP_PLANE4, eqnGtX);
 	glEnable(GL_CLIP_PLANE4);
 	glPopMatrix();
@@ -1159,18 +1150,18 @@ void testApp::draw(){
 	//A frame
 	glDisable(GL_DEPTH_TEST);
 	ofSetColor(0,0,0,255);
-	ofRect((ofGetHeight()*0)-100, -100, ofGetHeight()+200, 100); //top
-	ofRect((ofGetHeight()*(0+1)), -100, 100, (ofGetWidth()/3.0)+200); //right
+	ofRect((globals.window.height*0)-100, -100, globals.window.height+200, 100); //top
+	ofRect((globals.window.height*(0+1)), -100, 100, (globals.window.width/3.0)+200); //right
 	if(!rainEnable)
-		ofRect((ofGetHeight()*0)-100, (ofGetWidth()/3.0), ofGetHeight()+200, (ofGetWidth()/3.0)+100); //bottom
-	ofRect((ofGetHeight()*0)-100, -100, 100, (ofGetWidth()/3.0)+200); //left
+		ofRect((globals.window.height*0)-100, (globals.window.width/3.0), globals.window.height+200, (globals.window.width/3.0)+100); //bottom
+	ofRect((globals.window.height*0)-100, -100, 100, (globals.window.width/3.0)+200); //left
 	
 	//Screen 2
 	
 	glMatrixMode(GL_PROJECTION); 
 	glLoadIdentity(); 
-	glOrtho(0.0, (float)ofGetHeight(),
-			0.0, (float)ofGetWidth()/3.0, 10.0, 2500);
+	glOrtho(0.0, (float)globals.window.height,
+			0.0, (float)globals.window.width/3.0, 10.0, 2500);
 	
 	glMatrixMode(GL_MODELVIEW); 
 	glLoadIdentity();
@@ -1179,27 +1170,27 @@ void testApp::draw(){
 			  0.0, 1.0, 0.0);
 	
 	glScalef(1, -1, 1);           // invert Y axis so increasing Y goes down.
-  	glTranslatef(0, -(float)ofGetWidth()/3.0, 0);       // shift origin up to upper-left corner.
+  	glTranslatef(0, -(float)globals.window.width/3.0, 0);       // shift origin up to upper-left corner.
 	
-	glViewport(ofGetWidth()/3.0, 0, ofGetWidth()/3.0, ofGetHeight());
+	glViewport(globals.window.width/3.0, 0, globals.window.width/3.0, globals.window.height);
 	
 	cvsrc[0].x = 0;
-	cvsrc[0].y = 4.0*ofGetHeight()/3.0;		
+	cvsrc[0].y = 4.0*globals.window.height/3.0;		
 	cvsrc[1].x = 0;
 	cvsrc[1].y = 0;
-	cvsrc[2].x = ofGetWidth()/4.0;
+	cvsrc[2].x = globals.window.width/4.0;
 	cvsrc[2].y = 0;
-	cvsrc[3].x = ofGetWidth()/4.0;
-	cvsrc[3].y = 4.0*ofGetHeight()/3.0;	
+	cvsrc[3].x = globals.window.width/4.0;
+	cvsrc[3].y = 4.0*globals.window.height/3.0;	
 	
-	cvdst[0].y = ofGetWidth()/3.0*(1.0-projectorCorners[1][3].x);
-	cvdst[0].x = ofGetHeight()*projectorCorners[1][3].y;
-	cvdst[1].y = ofGetWidth()/3.0*(1.0-projectorCorners[1][0].x);
-	cvdst[1].x = ofGetHeight()*projectorCorners[1][0].y;
-	cvdst[2].y = ofGetWidth()/3.0*(1.0-projectorCorners[1][1].x);
-	cvdst[2].x = ofGetHeight()*projectorCorners[1][1].y;
-	cvdst[3].y = ofGetWidth()/3.0*(1.0-projectorCorners[1][2].x);
-	cvdst[3].x = ofGetHeight()*projectorCorners[1][2].y;	
+	cvdst[0].y = globals.window.width/3.0*(1.0-projectorCorners[1][3].x);
+	cvdst[0].x = globals.window.height*projectorCorners[1][3].y;
+	cvdst[1].y = globals.window.width/3.0*(1.0-projectorCorners[1][0].x);
+	cvdst[1].x = globals.window.height*projectorCorners[1][0].y;
+	cvdst[2].y = globals.window.width/3.0*(1.0-projectorCorners[1][1].x);
+	cvdst[2].x = globals.window.height*projectorCorners[1][1].y;
+	cvdst[3].y = globals.window.width/3.0*(1.0-projectorCorners[1][2].x);
+	cvdst[3].x = globals.window.height*projectorCorners[1][2].y;	
 	
 	translate = cvCreateMat(3,3,CV_32FC1);
 	src_mat = cvCreateMat( 4, 2, CV_32FC1 );
@@ -1230,12 +1221,12 @@ void testApp::draw(){
 	glEnable(GL_CLIP_PLANE3);
 	
 	glPushMatrix();
-	glTranslatef(ofGetHeight(), 0, 0);
+	glTranslatef(globals.window.height, 0, 0);
 	glClipPlane(GL_CLIP_PLANE4, eqnGtX);
 	glEnable(GL_CLIP_PLANE4);
 	glPopMatrix();
 	
-	glTranslatef(-ofGetHeight(), 0, 0);
+	glTranslatef(-globals.window.height, 0, 0);
 
 	drawViewport(1);
 	
@@ -1246,18 +1237,18 @@ void testApp::draw(){
 	//A frame
 	glDisable(GL_DEPTH_TEST);
 	ofSetColor(0,0,0,255);
-	ofRect((ofGetHeight()*1)-100, -100, ofGetHeight()+200, 100); //top
-	ofRect((ofGetHeight()*(1+1)), -100, 100, (ofGetWidth()/3.0)+200); //right
+	ofRect((globals.window.height*1)-100, -100, globals.window.height+200, 100); //top
+	ofRect((globals.window.height*(1+1)), -100, 100, (globals.window.width/3.0)+200); //right
 	if(!rainEnable)
-		ofRect((ofGetHeight()*1)-100, (ofGetWidth()/3.0), ofGetHeight()+200, (ofGetWidth()/3.0)+100); //bottom
-	ofRect((ofGetHeight()*1)-100, -100, 100, (ofGetWidth()/3.0)+200); //left
+		ofRect((globals.window.height*1)-100, (globals.window.width/3.0), globals.window.height+200, (globals.window.width/3.0)+100); //bottom
+	ofRect((globals.window.height*1)-100, -100, 100, (globals.window.width/3.0)+200); //left
 	
 	//Screen 3	
 	
 	glMatrixMode(GL_PROJECTION); 
 	glLoadIdentity(); 
-	glOrtho(0.0, (float)ofGetHeight(),
-			0.0, (float)ofGetWidth()/3.0, 10.0, 2500);
+	glOrtho(0.0, (float)globals.window.height,
+			0.0, (float)globals.window.width/3.0, 10.0, 2500);
 	
 	glMatrixMode(GL_MODELVIEW); 
 	glLoadIdentity();
@@ -1266,27 +1257,27 @@ void testApp::draw(){
 			  0.0, 1.0, 0.0);
 
 	glScalef(1, -1, 1);           // invert Y axis so increasing Y goes down.
-  	glTranslatef(0, -(float)ofGetWidth()/3.0, 0);       // shift origin up to upper-left corner.
+  	glTranslatef(0, -(float)globals.window.width/3.0, 0);       // shift origin up to upper-left corner.
 	
-	glViewport(2.0*ofGetWidth()/3.0, 0, ofGetWidth()/3.0, ofGetHeight());
+	glViewport(2.0*globals.window.width/3.0, 0, globals.window.width/3.0, globals.window.height);
 	
 	cvsrc[0].x = 0;
-	cvsrc[0].y = 4.0*ofGetHeight()/3.0;		
+	cvsrc[0].y = 4.0*globals.window.height/3.0;		
 	cvsrc[1].x = 0;
 	cvsrc[1].y = 0;
-	cvsrc[2].x = ofGetWidth()/4.0;
+	cvsrc[2].x = globals.window.width/4.0;
 	cvsrc[2].y = 0;
-	cvsrc[3].x = ofGetWidth()/4.0;
-	cvsrc[3].y = 4.0*ofGetHeight()/3.0;	
+	cvsrc[3].x = globals.window.width/4.0;
+	cvsrc[3].y = 4.0*globals.window.height/3.0;	
 	
-	cvdst[0].y = ofGetWidth()/3.0*(1.0-projectorCorners[2][3].x);
-	cvdst[0].x = ofGetHeight()*projectorCorners[2][3].y;
-	cvdst[1].y = ofGetWidth()/3.0*(1.0-projectorCorners[2][0].x);
-	cvdst[1].x = ofGetHeight()*projectorCorners[2][0].y;
-	cvdst[2].y = ofGetWidth()/3.0*(1.0-projectorCorners[2][1].x);
-	cvdst[2].x = ofGetHeight()*projectorCorners[2][1].y;
-	cvdst[3].y = ofGetWidth()/3.0*(1.0-projectorCorners[2][2].x);
-	cvdst[3].x = ofGetHeight()*projectorCorners[2][2].y;	
+	cvdst[0].y = globals.window.width/3.0*(1.0-projectorCorners[2][3].x);
+	cvdst[0].x = globals.window.height*projectorCorners[2][3].y;
+	cvdst[1].y = globals.window.width/3.0*(1.0-projectorCorners[2][0].x);
+	cvdst[1].x = globals.window.height*projectorCorners[2][0].y;
+	cvdst[2].y = globals.window.width/3.0*(1.0-projectorCorners[2][1].x);
+	cvdst[2].x = globals.window.height*projectorCorners[2][1].y;
+	cvdst[3].y = globals.window.width/3.0*(1.0-projectorCorners[2][2].x);
+	cvdst[3].x = globals.window.height*projectorCorners[2][2].y;	
 	
 	translate = cvCreateMat(3,3,CV_32FC1);
 	src_mat = cvCreateMat( 4, 2, CV_32FC1 );
@@ -1317,12 +1308,12 @@ void testApp::draw(){
 	glEnable(GL_CLIP_PLANE3);
 
 	glPushMatrix();
-		glTranslatef(ofGetHeight(), 0, 0);
+		glTranslatef(globals.window.height, 0, 0);
 		glClipPlane(GL_CLIP_PLANE4, eqnGtX);
 		glEnable(GL_CLIP_PLANE4);
 	glPopMatrix();
 	
-	glTranslatef(-ofGetHeight()*2.0, 0, 0);
+	glTranslatef(-globals.window.height*2.0, 0, 0);
 
 	drawViewport(2);
 
@@ -1333,11 +1324,11 @@ void testApp::draw(){
 	//A frame
 	glDisable(GL_DEPTH_TEST);
 	ofSetColor(0,0,0,255);
-	ofRect((ofGetHeight()*2)-100, -100, ofGetHeight()+200, 100); //top
-	ofRect((ofGetHeight()*(2+1)), -100, 100, (ofGetWidth()/3.0)+200); //right
+	ofRect((globals.window.height*2)-100, -100, globals.window.height+200, 100); //top
+	ofRect((globals.window.height*(2+1)), -100, 100, (globals.window.width/3.0)+200); //right
 	if(!rainEnable)
-		ofRect((ofGetHeight()*2)-100, (ofGetWidth()/3.0), ofGetHeight()+200, (ofGetWidth()/3.0)+100); //bottom
-	ofRect((ofGetHeight()*2)-100, -100, 100, (ofGetWidth()/3.0)+200); //left
+		ofRect((globals.window.height*2)-100, (globals.window.width/3.0), globals.window.height+200, (globals.window.width/3.0)+100); //bottom
+	ofRect((globals.window.height*2)-100, -100, 100, (globals.window.width/3.0)+200); //left
 	
 	//perspective overview	
 	
@@ -1345,8 +1336,8 @@ void testApp::draw(){
 	
 	int w, h;
 	
-	w = ofGetWidth()/6.0;
-	h = ofGetHeight();
+	w = globals.window.width/6.0;
+	h = globals.window.height;
 	
 	float halfFov, theTan, screenFov, aspect;
 	screenFov 		= 60.0f;
@@ -1368,21 +1359,21 @@ void testApp::draw(){
 	gluLookAt(eyeX*1.5, eyeY*3.5, dist*4.0, eyeX*1.5, (((1.0-perspectiveOffset)*-1.8)+1.0)*eyeY*(1+(statusOffset)), 0.0, 1.0, 0.0, 0.0);
 	
 	glScalef(1, -1, 1);           // invert Y axis so increasing Y goes down.
-  	glTranslatef(0, -(float)ofGetWidth()/3.0, 0);       // shift origin up to upper-left corner.
+  	glTranslatef(0, -(float)globals.window.width/3.0, 0);       // shift origin up to upper-left corner.
 	glTranslatef(0,(1.0-statusOffset)*-100.0,0);
 	
-	glViewport((ofGetWidth()/3.0), 0, ofGetWidth()/6.0, ofGetHeight());
+	glViewport((globals.window.width/3.0), 0, globals.window.width/6.0, globals.window.height);
 
-	glTranslatef(-ofGetHeight(), 0, 0);
+	glTranslatef(-globals.window.height, 0, 0);
 
 	glPushMatrix();
-	glTranslatef(-ofGetWidth()/3.0, 0, 0);
+	glTranslatef(-globals.window.width/3.0, 0, 0);
 	glClipPlane(GL_CLIP_PLANE3, eqnLtX);
 	glEnable(GL_CLIP_PLANE3);
 	glPopMatrix();
 	
 	glPushMatrix();
-	glTranslatef(ofGetWidth(), 0, 0);
+	glTranslatef(globals.window.width, 0, 0);
 	glClipPlane(GL_CLIP_PLANE4, eqnGtX);
 	glEnable(GL_CLIP_PLANE4);
 	glPopMatrix();
@@ -1409,7 +1400,7 @@ void testApp::draw(){
 	glDisable(GL_DEPTH_TEST);
 	ofSetColor(0, 64, 255,64*perspectiveOffset);
 	ofFill();
-	ofRect(0,0,ofGetHeight()*3.0,ofGetWidth()/3.0);
+	ofRect(0,0,globals.window.height*3.0,globals.window.width/3.0);
 
 	glDisable(GL_CLIP_PLANE3);
 	glDisable(GL_CLIP_PLANE4);
@@ -1441,14 +1432,14 @@ void testApp::drawViewport(int screen){
 		glTranslatef(0.0, yOffset, 0);
 		ofFill();
 		ofSetColor(0,0,0,255);
-		ofRect(0,-500, (ofGetHeight()*3.0), (500+(ofGetWidth()/3.0)));
+		ofRect(0,-500, (globals.window.height*3.0), (500+(globals.window.width/3.0)));
 		glPopMatrix();
 	} else {
 		for(int i=0;i<3;i++){
 			if(i == screen || screen < 0){
 				ofFill();
 				ofSetColor(backgroundColorR[i]*255, backgroundColorG[i]*255, backgroundColorB[i]*255, backgroundColorA[i]*255);
-				ofRect((ofGetHeight()*i),0, ofGetHeight(), (ofGetWidth()/3.0));
+				ofRect((globals.window.height*i),0, globals.window.height, (globals.window.width/3.0));
 			}
 		}
 	}
@@ -1462,20 +1453,20 @@ void testApp::drawViewport(int screen){
 		glTranslatef(0.0, 0.0, -400.0);
 		ofSetColor(255,255,255,255);
 		if(screen == 0 || screen < 0)
-		testCard1.draw(0,0,ofGetHeight(),ofGetWidth()/3.0);
+		testCard1.draw(0,0,globals.window.height,globals.window.width/3.0);
 		if(screen == 1 || screen < 0)
-		testCard2.draw(ofGetHeight(),0,ofGetHeight(),ofGetWidth()/3.0);
+		testCard2.draw(globals.window.height,0,globals.window.height,globals.window.width/3.0);
 		if(screen == 2 || screen < 0)
-		testCard3.draw(ofGetHeight()*2.0,0,ofGetHeight(),ofGetWidth()/3.0);
+		testCard3.draw(globals.window.height*2.0,0,globals.window.height,globals.window.width/3.0);
 		
 		ofEnableAlphaBlending();
 		ofDisableSmoothing();
 		ofSetColor(255, 255, 255, 20);
-		for(int v=0;v<ofGetHeight()*3.0;v+=10){
-			ofLine(v, 0, v, ofGetWidth()/3.0);
+		for(int v=0;v< globals.window.height*3.0;v+=10){
+			ofLine(v, 0, v, globals.window.width/3.0);
 		}
-		for(int h=0;h<ofGetWidth()/3.0;h+=10){
-			ofLine(0, h, ofGetHeight()*3.0, h);
+		for(int h=0;h< globals.window.width/3.0;h+=10){
+			ofLine(0, h, globals.window.height*3.0, h);
 		}
 		glTranslatef(0.0, 0.0, 400.0);
 		glPopMatrix();
@@ -1498,43 +1489,6 @@ void testApp::drawViewport(int screen){
 		glPushMatrix();
 		glTranslatef(0.0, yOffset, 0);
 		ofFill();
-		glPushAttrib(GL_BLEND_EQUATION);
-
-		if(yOffset < 100.0){
-			
-			glDisable(GL_DEPTH_TEST);
-			//glBlendFunc(GL_SRC_ALPHA,GL_ONE);
-
-			for(int i = 0;i < 100; i+=20){
-				ofSetColor(5,5,255,i);
-				ofRect(0.0,(ofGetWidth()/3.0)-(120-i),ofGetHeight()*3,ofGetWidth());
-			}
-			
-
-			ofSetColor(255,255,255,255);
-			ofRect(0.0,(ofGetWidth()/3.0)-40,ofGetHeight()*3,ofGetWidth());
-			ofBeginShape();
-			ofCurveVertex((ofGetHeight()*3)+200, (ofGetWidth()/3.0)+100);
-			ofCurveVertex(-200, (ofGetWidth()/3.0)+100);
-			for (int i = -200;i < (ofGetHeight()*3)+200; i+= 100){
-				ofCurveVertex(i-((fmodf(yOffset, 100))+50), (ofGetWidth()/3.0)-40);
-				ofCurveVertex(i-((fmodf(yOffset, 100))), (ofGetWidth()/3.0)-50);
-			}
-			ofEndShape(true);
-
-			
-			/** sne
-			for (int i=0; i < 5; i++){
-				float xPos = ofRandom(0,ofGetHeight()*3.0);
-				float radius = ofRandom(50,70);
-				ofSetColor(0,0,255,64);
-				ofCircle(xPos, (ofGetWidth()/3.0)+(radius-20), radius+50);
-				ofSetColor(255,255,255,63);
-				ofCircle(xPos, (ofGetWidth()/3.0)+(radius-20), radius);
-			}
-			// **/
-		}
-		glPopAttrib();
 		glEnable(GL_DEPTH_TEST);
 		for(int i = 0; i < rainDrops.size(); i++){
 			ofFill();
@@ -1576,11 +1530,11 @@ void testApp::drawViewport(int screen){
 		glTranslatef(0,0,10);
 		ofFill();
 		ofSetColor(8+(backgroundColorR[1]*64.0), 10+(backgroundColorG[1]*64.0), 16+(backgroundColorB[1]*64.0), 240 * perspectiveOffset);
-		ofRect(ofGetHeight(),0,ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+(statusOffset*90.0));
-		for(int i=0;i<roundf((ofGetWidth()/6.0)/3.0);i+=3){
+		ofRect(globals.window.height,0,globals.window.height,(2.0*(globals.window.width/6.0)/3.0)+(statusOffset*90.0));
+		for(int i=0;i<roundf((globals.window.width/6.0)/3.0);i+=3){
 			ofFill();
-			ofSetColor(8+(backgroundColorR[1]*64.0), 10+(backgroundColorG[1]*64.0), 16+(backgroundColorB[1]*64.0),  perspectiveOffset*240*cos(2.0*(i/((ofGetWidth()/6.0)/3.0))));
-			ofRect(ofGetHeight(),(2.0*(ofGetWidth()/6.0)/3.0)+i+(statusOffset*90.0), ofGetHeight(), 3);
+			ofSetColor(8+(backgroundColorR[1]*64.0), 10+(backgroundColorG[1]*64.0), 16+(backgroundColorB[1]*64.0),  perspectiveOffset*240*cos(2.0*(i/((globals.window.width/6.0)/3.0))));
+			ofRect(globals.window.height,(2.0*(globals.window.width/6.0)/3.0)+i+(statusOffset*90.0), globals.window.height, 3);
 		}
 		glPopMatrix();
 	}
@@ -1593,23 +1547,23 @@ void testApp::drawViewport(int screen){
 		ofFill();
 		for(int i=0 ; i<100 ; i+=2){
 			ofSetColor(12*(i/100.0), 12*(i/100.0), (12*(i/100.0))+4, statusOffset*((50.0-(i/2.0))+64.0));
-			ofRect(0,i, ofGetHeight()*3.0,2.0);
+			ofRect(0,i, globals.window.height*3.0,2.0);
 		}
 		
-		ofRect(0,0,ofGetWidth(),100);
+		ofRect(0,0,globals.window.width,100);
 		
 		ofSetColor(255, 255, 255, 255*statusOffset);
 
-		float textOffset = ofGetHeight()-20;
+		float textOffset = globals.window.height-20;
 
 		if(showStatusCams){
 
-		textOffset = ofGetHeight()-((20+(((80*(4/3.0))+10)*3)));
+		textOffset = globals.window.height-((20+(((80*(4/3.0))+10)*3)));
 
 		if(screen == 0){
 		glPushMatrix();
 		glTranslatef(10, 10, 1.0);
-		glTranslatef(ofGetHeight()-(10+(((80*(4/3.0))+10)*3)), 0, 0);
+		glTranslatef(globals.window.height-(10+(((80*(4/3.0))+10)*3)), 0, 0);
 		camera[0].grayDiff.draw(0,0,(80*(4/3.0)),80);
 		glTranslatef(10+(80*(4/3.0)), 0, 0);
 		camera[0].grayImage.draw(0,0,(80*(4/3.0)),80);
@@ -1620,7 +1574,7 @@ void testApp::drawViewport(int screen){
 		if(screen == 1){
 		glPushMatrix();
 		glTranslatef(10, 10, 1.0);
-		glTranslatef((2*ofGetHeight())-(10+(((80*(4/3.0))+10)*3)), 0, 0);
+		glTranslatef((2*globals.window.height)-(10+(((80*(4/3.0))+10)*3)), 0, 0);
 		camera[1].grayDiff.draw(0,0,(80*(4/3.0)),80);
 		glTranslatef(10+(80*(4/3.0)), 0, 0);
 		camera[1].grayImage.draw(0,0,(80*(4/3.0)),80);
@@ -1631,7 +1585,7 @@ void testApp::drawViewport(int screen){
 		if(screen == 2){
 		glPushMatrix();
 		glTranslatef(10, 10, 1.0);
-		glTranslatef((3*ofGetHeight())-(10+(((80*(4/3.0))+10)*3)), 0, 0);
+		glTranslatef((3*globals.window.height)-(10+(((80*(4/3.0))+10)*3)), 0, 0);
 		camera[2].grayDiff.draw(0,0,(80*(4/3.0)),80);
 		glTranslatef(10+(80*(4/3.0)), 0, 0);
 		camera[2].grayImage.draw(0,0,(80*(4/3.0)),80);
@@ -1644,11 +1598,11 @@ void testApp::drawViewport(int screen){
 		for(int i = 0 ; i < 3 ; i++) {
 			if(screen == i){
 			glPushMatrix();
-			glTranslatef((i*ofGetHeight())+10, 20, 1.0);
+			glTranslatef((i*globals.window.height)+10, 20, 1.0);
 			glPushMatrix();
 			glTranslatef(textOffset-(2*80*(4/3.0)), 0, 0);
 			ofSetColor(255, 255, 255, 255*statusOffset);
-			statusFontBold.drawString("FPS: " + ofToString(ofGetFrameRate(),2),0,0);
+			statusFontBold.drawString("FPS: " + ofToString(frameRate,2),0,0);
 			glTranslatef(0, 13, 0);
 			if(controlPanelOnline){
 				ofSetColor(255, 255, 255, 255*statusOffset);
@@ -1714,31 +1668,31 @@ void testApp::drawViewport(int screen){
 		glPushMatrix();
 		glTranslatef(0.0, 0.0, 4.0);
 		ofSetColor(127,127,127);
-		glTranslatef(0.0, (ofGetWidth()/3.0)-(ofGetHeight()*(camera[0].grayImage.height/(float)camera[0].grayImage.width)), 0.0);
+		glTranslatef(0.0, (globals.window.width/3.0)-(globals.window.height*(camera[0].grayImage.height/(float)camera[0].grayImage.width)), 0.0);
 		if(screen == 0)
-		camera[0].grayImage.draw(0,0,ofGetHeight(),ofGetHeight()*(camera[0].grayImage.height/(float)camera[0].grayImage.width));
-		glTranslatef(ofGetHeight(), 0.0, 0.0);
+		camera[0].grayImage.draw(0,0,globals.window.height,globals.window.height*(camera[0].grayImage.height/(float)camera[0].grayImage.width));
+		glTranslatef(globals.window.height, 0.0, 0.0);
 		if(screen == 1)
-		camera[1].grayImage.draw(0,0,ofGetHeight(),ofGetHeight()*(camera[1].grayImage.height/(float)camera[1].grayImage.width));
-		glTranslatef(ofGetHeight(), 0.0, 0.0);
+		camera[1].grayImage.draw(0,0,globals.window.height,globals.window.height*(camera[1].grayImage.height/(float)camera[1].grayImage.width));
+		glTranslatef(globals.window.height, 0.0, 0.0);
 		if(screen == 2)
-		camera[2].grayImage.draw(0,0,ofGetHeight(),ofGetHeight()*(camera[2].grayImage.height/(float)camera[2].grayImage.width));
+		camera[2].grayImage.draw(0,0,globals.window.height,globals.window.height*(camera[2].grayImage.height/(float)camera[2].grayImage.width));
 		glPopMatrix();
 	}
 	glPushMatrix();
 	if(camDebug[0] || moveCameraCorners){
 		ofFill();
-		camera[0].draw(ofGetHeight(),ofGetWidth()/3.0);
+		camera[0].draw(globals.window.height,globals.window.width/3.0);
 	}
-	glTranslatef(ofGetHeight(), 0.0, 0.0);
+	glTranslatef(globals.window.height, 0.0, 0.0);
 	if(camDebug[1] || moveCameraCorners){
 		ofFill();
-		camera[1].draw(ofGetHeight(),ofGetWidth()/3.0);
+		camera[1].draw(globals.window.height,globals.window.width/3.0);
 	}
-	glTranslatef(ofGetHeight(), 0.0, 0.0);
+	glTranslatef(globals.window.height, 0.0, 0.0);
 	if(camDebug[2] || moveCameraCorners){
 		ofFill();
-		camera[2].draw(ofGetHeight(),ofGetWidth()/3.0);
+		camera[2].draw(globals.window.height,globals.window.width/3.0);
 	}
 	glPopMatrix();
 	
@@ -1756,7 +1710,7 @@ void testApp::drawViewport(int screen){
 			/** using ofShapes
 			ofBeginShape();
 			for(int i=0;i<camera[u].simplify->numPoints;i++){
-				ofCurveVertex((u*ofGetHeight())+camera[u].simplify->points[i].x*ofGetHeight(), camera[u].simplify->points[i].y*ofGetWidth()/3.0);
+				ofCurveVertex((u*globals.window.height)+camera[u].simplify->points[i].x*globals.window.height, camera[u].simplify->points[i].y*globals.window.width/3.0);
 			}
 			ofEndShape(true);
 			**/
@@ -1766,14 +1720,14 @@ void testApp::drawViewport(int screen){
 			float spacing = 1.0/numSteps;
 
 			ofSetPolyMode(OF_POLY_WINDING_POSITIVE);
-
+			
 			ofBeginShape();
 			for(float f=0; f<1; f+= spacing) {
 				ofxVec2f v = camera[u].simplify->mySpline2D.sampleAt(f);
-				ofCurveVertex((u*ofGetHeight())+v.x*ofGetHeight(), v.y*ofGetWidth()/3.0);
+				ofCurveVertex((u*globals.window.height)+v.x*globals.window.height, v.y*globals.window.width/3.0);
 			}
 			ofxVec2f v = camera[u].simplify->mySpline2D.sampleAt(0.0);
-			ofCurveVertex((u*ofGetHeight())+v.x*ofGetHeight(), v.y*ofGetWidth()/3.0);
+			ofCurveVertex((u*globals.window.height)+v.x*globals.window.height, v.y*globals.window.width/3.0);
 			ofEndShape(true);
 			
 		}
@@ -1783,7 +1737,7 @@ void testApp::drawViewport(int screen){
 	
 	
 	if(makeSnaps){
-		img.grabScreen(0,0,ofGetWidth(),ofGetHeight());
+		img.grabScreen(0,0,globals.window.width,globals.window.height);
 		char fileName[255];
 		sprintf(fileName, "snapshot_%0.3i.png", snapCounter);
 		img.saveImage(fileName);
@@ -1795,9 +1749,9 @@ void testApp::drawViewport(int screen){
 	
 /*	if(camera[0].contourFinder.nBlobs > 0){
 		for(int i=0;i<camera[0].simplify->numPoints;i++){
-			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,+20000));
-			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*ofGetHeight()/100.0, camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0,-20000));
-			//cout<<camera[0].simplify->points[i].x*ofGetHeight()/100.0<< "  ,  "<<camera[0].simplify->points[i].y*(ofGetWidth()/3.0)/100.0<<endl;
+			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*globals.window.height/100.0, camera[0].simplify->points[i].y*(globals.window.width/3.0)/100.0,+20000));
+			silhouette1Shape->addPoint(btVector3(camera[0].simplify->points[i].x*globals.window.height/100.0, camera[0].simplify->points[i].y*(globals.window.width/3.0)/100.0,-20000));
+			//cout<<camera[0].simplify->points[i].x*globals.window.height/100.0<< "  ,  "<<camera[0].simplify->points[i].y*(globals.window.width/3.0)/100.0<<endl;
 		}
 	}
 

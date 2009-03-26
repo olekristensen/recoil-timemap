@@ -11,10 +11,11 @@
 #include "boost/algorithm/string/replace.hpp"
 #include "boost/algorithm/string/trim.hpp"
 #include "boost/algorithm/string/find.hpp"
+#include "globals.h"
+
 
 using namespace std;
 using namespace boost;
-
 
 class Text : public TextObject {
 public:
@@ -147,7 +148,7 @@ public:
 		scaffoldingOn = true;
 		if(!hasBeenAnimated){
 		scaffolding.clear();
-		float screenHeight = ofGetWidth()/3.0;
+		float screenHeight = globals.window.width/3.0;
 		float height = getHeight();
 		float y = getTranslate().y;
 		float x = getTranslate().x;
@@ -467,18 +468,24 @@ public:
 	
 	void clearBullet(){
 		//cout << "bodies: " << bodies.size() << " collisionshapes: " << m_collisionShapes.size() << endl;
+		for( int i=bodies.size()-1; i>=0; i-- ) {
+			if(bodies[i] && bodies[i]->getMotionState()){
+				//delete bodies[i]->getMotionState();
+			}
+			dynamicsWorld->removeRigidBody(bodies.at(i));
+			//delete bodies [i];
+		}
+		
+		bodies.clear();
+
 		for (int i=0;i<m_collisionShapes.size();i++) {
 			btCollisionShape* shape = m_collisionShapes[i];
+			m_collisionShapes[i] = 0;
 			if(shape){
-				// crashes
-				//delete shape;
+				delete shape;
 			}
 		}
 		m_collisionShapes.clear();
-		for( int i=0; i < bodies.size(); i++ ) {
-			dynamicsWorld->removeRigidBody(bodies.at(i));
-		}
-		bodies.clear();
 	}
 	
 	void restBullet(){
@@ -556,15 +563,15 @@ public:
 		l[i]->matrix[15] = 1;
 		if(worldWrapX || worldWrapY) {
 			if(worldWrapX && pos[i].getX()*100 < -75.0){
-				pos[i].setX(0.5+(ofGetHeight()*3.0)/100.0);
+				pos[i].setX(0.5+(globals.window.height*3.0)/100.0);
 			}
-			if(worldWrapX && pos[i].getX()*100 > (ofGetHeight()*3.0)+75.0){
+			if(worldWrapX && pos[i].getX()*100 > ( globals.window.height*3.0)+75.0){
 				pos[i].setX(-0.5);
 			}
 			if(worldWrapY && pos[i].getY()*100 < -75.0){
-				pos[i].setY(0.5+(ofGetWidth()/3.0)/100.0);
+				pos[i].setY(0.5+(globals.window.width/3.0)/100.0);
 			}
-			if(worldWrapY && pos[i].getY()*100 > (ofGetWidth()/3.0)+75.0){
+			if(worldWrapY && pos[i].getY()*100 > ( globals.window.width/3.0)+75.0){
 				pos[i].setY(-0.5);
 			}
 		}
