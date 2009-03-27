@@ -10,6 +10,8 @@
 #define OF_ADDON_USING_OFXOPENCV
 #define OF_ADDON_USING_OFSHADER
 #define OF_ADDON_USING_OFX3DUTIL
+#define OF_ADDON_USING_OFXVECTORMATH
+
 
 //#include "ofShader.h"
 #include "TextFontHolder.h"

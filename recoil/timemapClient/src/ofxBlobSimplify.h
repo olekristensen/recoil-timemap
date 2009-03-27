@@ -2,9 +2,9 @@
 #define _OFX_BLOBLSIMPLIFY
 
 #include "ofMain.h"
-#define OF_ADDON_USING_OFXVECTORMATH
 #define OF_ADDON_USING_OFXOPENCV
 #define OF_ADDON_USING_OFXMSASPLINE
+#define OF_ADDON_USING_OFXVECTORMATH
 
 #include "ofAddons.h"
 

@@ -1,6 +1,7 @@
 #ifndef RECOIL_CAMERA
 #define RECOIL_CAMERA
 #define OF_ADDON_USING_OFXOPENCV
+#define OF_ADDON_USING_OFXVECTORMATH
 
 #include "ofMain.h"
 #include "ofAddons.h"

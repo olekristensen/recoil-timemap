@@ -1020,10 +1020,12 @@ void testApp::draw(){
 		
 	glClear(GL_DEPTH_BUFFER_BIT);
 
+	/**
 	if(rainEnable)
 		yOffset=100;
 	else 
 		yOffset = 0.0;
+	**/
 	
 	if(showStatus){
 		if(statusOffset <1.0)
@@ -1152,8 +1154,7 @@ void testApp::draw(){
 	ofSetColor(0,0,0,255);
 	ofRect((globals.window.height*0)-100, -100, globals.window.height+200, 100); //top
 	ofRect((globals.window.height*(0+1)), -100, 100, (globals.window.width/3.0)+200); //right
-	if(!rainEnable)
-		ofRect((globals.window.height*0)-100, (globals.window.width/3.0), globals.window.height+200, (globals.window.width/3.0)+100); //bottom
+	ofRect((globals.window.height*0)-100, (globals.window.width/3.0), globals.window.height+200, (globals.window.width/3.0)+100); //bottom
 	ofRect((globals.window.height*0)-100, -100, 100, (globals.window.width/3.0)+200); //left
 	
 	//Screen 2
@@ -1239,8 +1240,7 @@ void testApp::draw(){
 	ofSetColor(0,0,0,255);
 	ofRect((globals.window.height*1)-100, -100, globals.window.height+200, 100); //top
 	ofRect((globals.window.height*(1+1)), -100, 100, (globals.window.width/3.0)+200); //right
-	if(!rainEnable)
-		ofRect((globals.window.height*1)-100, (globals.window.width/3.0), globals.window.height+200, (globals.window.width/3.0)+100); //bottom
+	ofRect((globals.window.height*1)-100, (globals.window.width/3.0), globals.window.height+200, (globals.window.width/3.0)+100); //bottom
 	ofRect((globals.window.height*1)-100, -100, 100, (globals.window.width/3.0)+200); //left
 	
 	//Screen 3	
@@ -1326,8 +1326,7 @@ void testApp::draw(){
 	ofSetColor(0,0,0,255);
 	ofRect((globals.window.height*2)-100, -100, globals.window.height+200, 100); //top
 	ofRect((globals.window.height*(2+1)), -100, 100, (globals.window.width/3.0)+200); //right
-	if(!rainEnable)
-		ofRect((globals.window.height*2)-100, (globals.window.width/3.0), globals.window.height+200, (globals.window.width/3.0)+100); //bottom
+	ofRect((globals.window.height*2)-100, (globals.window.width/3.0), globals.window.height+200, (globals.window.width/3.0)+100); //bottom
 	ofRect((globals.window.height*2)-100, -100, 100, (globals.window.width/3.0)+200); //left
 	
 	//perspective overview	
@@ -1427,20 +1426,11 @@ void testApp::drawViewport(int screen){
 	glPushMatrix();
 	glTranslatef(0.0, 0.0, -1000.0);
 	
-	if(rainEnable) {
-		glPushMatrix();
-		glTranslatef(0.0, yOffset, 0);
-		ofFill();
-		ofSetColor(0,0,0,255);
-		ofRect(0,-500, (globals.window.height*3.0), (500+(globals.window.width/3.0)));
-		glPopMatrix();
-	} else {
-		for(int i=0;i<3;i++){
-			if(i == screen || screen < 0){
-				ofFill();
-				ofSetColor(backgroundColorR[i]*255, backgroundColorG[i]*255, backgroundColorB[i]*255, backgroundColorA[i]*255);
-				ofRect((globals.window.height*i),0, globals.window.height, (globals.window.width/3.0));
-			}
+	for(int i=0;i<3;i++){
+		if(i == screen || screen < 0){
+			ofFill();
+			ofSetColor(backgroundColorR[i]*255, backgroundColorG[i]*255, backgroundColorB[i]*255, backgroundColorA[i]*255);
+			ofRect((globals.window.height*i),0, globals.window.height, (globals.window.width/3.0));
 		}
 	}
 	glTranslatef(0.0, 0.0, 1000.0);
