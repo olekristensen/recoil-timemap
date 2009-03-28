@@ -1,8 +1,8 @@
 ﻿#ifndef _TEST_APP
 #define _TEST_APP
 
-#define HISTORYSIZE 750
-#define PICTURESIZE 1327104
+#define HISTORYSIZE 250
+#define PICTURESIZE 1327104  //(768*576*3)
 
 #define OF_ADDON_USING_OFXOSC
 #define OF_ADDON_USING_OFXUTF8
@@ -79,18 +79,26 @@ public:
 	
 	Camera camera[3];
 	
-		
-	ofVideoGrabber vidTracker;
-	ofTexture trackerTexture;
-	ofxCvColorImage	colorImg;
+	ofVideoGrabber	videoGrabber1;
+	ofTexture		videoTexture1;
+	ofxCvColorImage	videoCvImage1;
+	unsigned char	videoHistory1[HISTORYSIZE][PICTURESIZE];
+	int				videoHistory1index;
+	int				videoHistory1showIndex;
 	
-	ofVideoGrabber vidLeft;
-	ofTexture leftTexture;
-	ofxCvColorImage	colorImgLeft;
+	ofVideoGrabber	videoGrabber2;
+	ofTexture		videoTexture2;
+	ofxCvColorImage	videoCvImage2;
+	unsigned char	videoHistory2[HISTORYSIZE][PICTURESIZE];
+	int				videoHistory2index;
+	int				videoHistory2showIndex;
 	
-	ofVideoGrabber vidRight;
-	ofTexture rihgtTexture;
-	ofxCvColorImage	colorImgRight;
+	ofVideoGrabber	videoGrabber3;
+	ofTexture		videoTexture3;
+	ofxCvColorImage	videoCvImage3;
+	unsigned char	videoHistory3[HISTORYSIZE][PICTURESIZE];
+	int				videoHistory3index;
+	int				videoHistory3showIndex;
 	
 	btDiscreteDynamicsWorld * dynamicsWorld;
 	btDefaultCollisionConfiguration* collisionConfiguration;
@@ -245,7 +253,13 @@ public:
 	float yOffset;
 	
 	GLUtesselator *tobj;
-		
+	
+	bool delayTripple;
+	
+	bool delayUpdate[3];
+	float delayAlpha[3];
+	float delayTime[3];
+
 };
 
 #endif

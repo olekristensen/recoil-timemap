@@ -201,26 +201,52 @@ void testApp::setup(){
 	//light3.ambient(0,0,0); //this basically tints everything with its color, by default is 0,0,0.
 	ofxSetSmoothLight(true);
 	
-	//tracking kamera
-	vidTracker.setVerbose(true);
-	vidTracker.setDeviceID(0);
-	vidTracker.initGrabber(720,576);
+	//video input 1 - also used for tracking via quad processor
+	videoGrabber1.setVerbose(true);
+	videoGrabber1.setDeviceID(0);
+	videoGrabber1.initGrabber(768,576);
+	videoCvImage1.allocate(768,576);
+	videoTexture1.allocate(768,576, GL_RGB);
+	videoHistory1index = 0;
+	videoHistory1showIndex = 0;
+	
+	camera[0].setup(&videoGrabber1, &videoTexture1, &videoCvImage1,  0,0,videoGrabber1.width/2, videoGrabber1.height/2);
+	camera[1].setup(&videoGrabber1, &videoTexture1, &videoCvImage1,  videoGrabber1.width/2,0,videoGrabber1.width/2, videoGrabber1.height/2);
+	camera[2].setup(&videoGrabber1, &videoTexture1, &videoCvImage1,  0,videoGrabber1.height/2,videoGrabber1.width/2, videoGrabber1.height/2);
+	
+	//video input 2 - only for delay
+	videoGrabber2.setVerbose(true);
+	videoGrabber2.setDeviceID(1);
+	videoGrabber2.initGrabber(768,576);
+	videoCvImage2.allocate(768,576);
+	videoTexture2.allocate(768,576, GL_RGB);
+	videoHistory2index = 0;
+	videoHistory2showIndex = 0;
+	
+	//video input 3 - only for delay
+	videoGrabber3.setVerbose(true);
+	videoGrabber3.setDeviceID(2);
+	videoGrabber3.initGrabber(768,576);
+	videoCvImage3.allocate(768,576);
+	videoTexture3.allocate(768,576, GL_RGB);
+	videoHistory3index = 0;
+	videoHistory3showIndex = 0;
 
-	colorImg.allocate(720,576);
+
+	// delay controls
 	
-	camera[0].setup(&vidTracker, &trackerTexture, &colorImg,  0,0,vidTracker.width/2, vidTracker.height/2);
-	camera[1].setup(&vidTracker, &trackerTexture, &colorImg,  vidTracker.width/2,0,vidTracker.width/2, vidTracker.height/2);
-	camera[2].setup(&vidTracker, &trackerTexture, &colorImg,  0,vidTracker.height/2,vidTracker.width/2, vidTracker.height/2);
+	delayTripple = false;
+	sharedVariables.push_back(SharedVariable(&delayTripple,		"delayTripple"));
+		
+	for(int i=0;i<3;i++){
+		delayUpdate[i] = true;
+		delayAlpha[i] = 0.0;
+		delayTime[i] = 0.0;
 	
-	//delay kameraer
-	
-	vidLeft.setVerbose(true);
-	vidLeft.setDeviceID(1);
-	vidLeft.initGrabber(720,576);
-	
-	vidRight.setVerbose(true);
-	vidRight.setDeviceID(2);
-	vidRight.initGrabber(720,576);
+		sharedVariables.push_back(SharedVariable(&delayUpdate[i],	"delayUpdate"	+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&delayAlpha[i],	"delayAlpha"	+ofToString(i, 0)));
+		sharedVariables.push_back(SharedVariable(&delayTime[i],		"delayTime"		+ofToString(i, 0)));
+	}
 	
 	// screen snapshots
 	
@@ -545,16 +571,32 @@ void testApp::update(){
 		controlPanelOnlineTime = ofGetElapsedTimeMillis();
 		screensAliveLastTime = screensAliveTime + 500;
 	}
+
+	int totalPixels = 768*576*3;
+
+	// Videograbber 1
 	
-	// Videograbber
-	
-	vidTracker.grabFrame();
-	ofPoint leftPoint = ofPoint(-1,-1);
-	ofPoint rightPoint = ofPoint(-1,-1);
-	ofxPoint2f p;
-	if (vidTracker.isFrameNew()){		
-		colorImg.setFromPixels(vidTracker.getPixels(), 720,576);
-			for(int i = 0; i < 3; i++) {
+	videoGrabber1.grabFrame();
+	if (videoGrabber1.isFrameNew()){
+		
+		unsigned char * pixels = videoGrabber1.getPixels();
+		
+		// update delay
+		if(delayUpdate[0]){
+#pragma omp parallel for
+			for (int i = 0; i < totalPixels; i++){
+				videoHistory1[videoHistory1index][i] = pixels[i];
+			}
+			videoHistory1index++;
+			if(videoHistory1index > HISTORYSIZE-1){
+				videoHistory1index = 0;
+			}
+		}
+		
+		videoCvImage1.setFromPixels(pixels, 768,576);
+		
+		// update tracker
+		for(int i = 0; i < 3; i++) {
 			if(camCaptureBackground[i]){
 				camera[i].bLearnBakground = true;
 				camCaptureBackground[i] = false;
@@ -563,8 +605,99 @@ void testApp::update(){
 			if(camRefresh[i])
 				camera[i].update(blobExpansion[i]);
 		}
-	}
+	
+		videoHistory1showIndex = round(delayTime[0] * HISTORYSIZE); 
+		int index = videoHistory1index-videoHistory1showIndex-1;
+		if(index < 0){	
+			index = HISTORYSIZE + index;
+		}
+		videoTexture1.loadData(videoHistory1[index], 768,576, GL_RGB);
+
+		if(!delayTripple){
+			videoHistory2showIndex = round(delayTime[1] * HISTORYSIZE); 
+			
+			index = videoHistory2index-videoHistory2showIndex-1;
+			if(index < 0){	
+				index = HISTORYSIZE + index;
+			}
+			
+			videoTexture2.loadData(videoHistory1[index], 768,576, GL_RGB);
+
+			videoHistory3showIndex = round(delayTime[2] * HISTORYSIZE); 
+			
+			index = videoHistory3index-videoHistory3showIndex-1;
+			if(index < 0){	
+				index = HISTORYSIZE + index;
+			}
 		
+			videoTexture3.loadData(videoHistory1[index], 768,576, GL_RGB);
+
+		}
+	
+	}
+	
+	
+	// Videograbber 2
+	
+	videoGrabber2.grabFrame();
+	if (videoGrabber2.isFrameNew()){
+		
+		unsigned char * pixels = videoGrabber2.getPixels();
+		
+		// update delay 
+		if(delayUpdate[1]){
+			for (int i = 0; i < totalPixels; i++){
+				videoHistory2[videoHistory2index][i] = pixels[i];
+			}
+			videoHistory2index++;
+			if(videoHistory2index > HISTORYSIZE-1){
+				videoHistory2index = 0;
+			}
+		}
+		
+		videoCvImage2.setFromPixels(pixels, 768,576);
+
+		videoHistory2showIndex = round(delayTime[1] * HISTORYSIZE); 
+		
+		int index = videoHistory2index-videoHistory2showIndex-1;
+		if(index < 0){	
+			index = HISTORYSIZE + index;
+		}
+		
+		if(delayTripple)
+			videoTexture2.loadData(videoHistory2[index], 768,576, GL_RGB);
+	}		
+	
+	// Videograbber 3
+	
+	videoGrabber3.grabFrame();
+	if (videoGrabber3.isFrameNew()){
+		
+		unsigned char * pixels = videoGrabber3.getPixels();
+		
+		// update delay 
+		if(delayUpdate[2]){
+			for (int i = 0; i < totalPixels; i++){
+				videoHistory3[videoHistory3index][i] = pixels[i];
+			}
+			videoHistory3index++;
+			if(videoHistory3index > HISTORYSIZE-1){
+				videoHistory3index = 0;
+			}
+		}
+		
+		videoCvImage3.setFromPixels(pixels, 768,576);
+	
+		videoHistory3showIndex = round(delayTime[2] * HISTORYSIZE); 
+		
+		int index = videoHistory3index-videoHistory3showIndex-1;
+		if(index < 0){	
+			index = HISTORYSIZE + index;
+		}
+		if(delayTripple)
+			videoTexture3.loadData(videoHistory3[index], 768,576, GL_RGB);
+	}
+	
 	//Gravity
 	
 	dynamicsWorld->setGravity(*btGravity);
@@ -760,7 +893,9 @@ void testApp::update(){
 	}
 	
 	//Collider
-
+	
+	ofxPoint2f p;
+	
 	if(mouseX > 0 && mouseX < globals.window.width){
 		ofHideCursor();
 		point.x += (mouseX*3.0/4.0-point.x);
@@ -1462,9 +1597,42 @@ void testApp::drawViewport(int screen){
 		glPopMatrix();
 	}
 	
-	//Draw Letters
-
+	// Draw Delays
+	
+	glDisable(GL_DEPTH_TEST);
 	ofEnableAlphaBlending();
+
+	if(delayTripple){
+		for(int i=0;i<3;i++){
+			if(delayAlpha[i] > 0.0){
+			ofSetColor(255.0,255.0,255.0,delayAlpha[i]*255 );
+			if(screen == 0 && i == 0)
+				videoTexture1.draw(0, 0, globals.window.width/3.0, globals.window.height);
+			if(screen == 1 && i == 1)
+				videoTexture2.draw(0, 0, globals.window.width/3.0, globals.window.height);
+			if(screen == 2 && i == 2)
+				videoTexture3.draw(0, 0, globals.window.width/3.0, globals.window.height);
+			}
+		}
+	} else {
+		for(int i=0;i<3;i++){
+			if(delayAlpha[i] > 0.0){
+				ofSetColor(255.0,255.0,255.0,delayAlpha[i]*255 );
+				if(screen == 0 && i == 0)
+					videoTexture1.draw(0, 0, globals.window.height*3.0, globals.window.height*3.0*(576.0/768.0));
+				if(screen == 1 && i == 1)
+					videoTexture2.draw(0, 0, globals.window.height*3.0, globals.window.height*3.0*(576.0/768.0));
+				if(screen == 2 && i == 2)
+					videoTexture3.draw(0, 0, globals.window.height*3.0, globals.window.height*3.0*(576.0/768.0));
+			}
+		}
+	}
+	
+	// Draw Letters
+
+	glEnable(GL_DEPTH_TEST);
+	ofEnableAlphaBlending();
+
 	for(int i=0;i<3;i++){
 		ofFill();
 		ofSetColor(textColorR[i]*255, textColorG[i]*255, textColorB[i]*255, textColorA[i]*255);
@@ -1785,7 +1953,7 @@ void testApp::keyPressed  (int key){
 			break;
 		case 'v':
 			ofShowCursor();
-			vidTracker.videoSettings();
+			videoGrabber1.videoSettings();
 			ofHideCursor();
 			break;
 		case 'c':
